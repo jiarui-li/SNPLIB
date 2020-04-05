@@ -1,14 +1,15 @@
-#ifndef SNPLIB_LOGISTIC_REGRESS_H
-#define SNPLIB_LOGISTIC_REGRESS_H
+#ifndef _SNPLIB_SRC_LOGISTIC_REGRESSION_H_
+#define _SNPLIB_SRC_LOGISTIC_REGRESSION_H_
 
-#ifndef USE_OPENBLAS
+#include <algorithm>
+#include <cmath>
+#ifdef USE_MKL
 #include <mkl.h>
-#else
+#endif
+#ifdef USE_OPENBLAS
 #include <cblas.h>
 #include <lapacke.h>
 #endif
-#include <algorithm>
-#include <cmath>
 
 namespace snplib {
 template <int P>
@@ -132,4 +133,4 @@ class LogisticRegress {
 };
 }  // namespace snplib
 
-#endif  // SNPLIB_LOGISTIC_REGRESS_H
+#endif  //_SNPLIB_SRC_LOGISTIC_REGRESSION_H_

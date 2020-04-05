@@ -1,12 +1,12 @@
-#include "base.h"
-
+#include "basic_statistics.h"
 namespace {
 const uint64_t kMask = 0x5555555555555555;  // 0x5555=b0101010101010101
 }  // namespace
 
+namespace snplib {
 void CalcAlleleFrequencies(uint8_t *geno, size_t num_samples, size_t num_snps,
                            double *af) {
-  snplib::SNP snp(geno, num_samples);
+  SNP snp(geno, num_samples);
   auto num_words_snp = num_samples / 32 + ((num_samples % 32) != 0u ? 1 : 0);
   auto num_bytes = num_samples / 4 + ((num_samples % 4) != 0 ? 1 : 0);
   auto correct = 4 * num_bytes - num_samples;
@@ -31,9 +31,9 @@ void CalcAlleleFrequencies(uint8_t *geno, size_t num_samples, size_t num_snps,
   }
   delete[] geno64;
 }
-void CalcCallrates(uint8_t *geno, size_t num_samples, size_t num_snps,
-                   double *cr) {
-  snplib::SNP snp(geno, num_samples);
+void CalcMissing(uint8_t *geno, size_t num_samples, size_t num_snps,
+                 double *ms) {
+  SNP snp(geno, num_samples);
   auto num_words_snp = num_samples / 32 + ((num_samples % 32) != 0u ? 1 : 0);
   auto num_bytes = num_samples / 4 + ((num_samples % 4) != 0 ? 1 : 0);
   auto correct = 4 * num_bytes - num_samples;
@@ -50,42 +50,9 @@ void CalcCallrates(uint8_t *geno, size_t num_samples, size_t num_snps,
       nonmissings += _mm_popcnt_u64(tmp_m);
     }
     nonmissings -= correct;
-    cr[i] = static_cast<double>(nonmissings) / num_samples / 2.0;
+    ms[i] = 1.0 - static_cast<double>(nonmissings) / num_samples / 2.0;
     ++snp;
   }
   delete[] geno64;
 }
-void FlipGeno(uint8_t *geno, size_t num_samples, size_t num_snps,
-              const int32_t *idx) {
-  snplib::SNP snp(geno, num_samples);
-  for (size_t i = 0; i < num_snps; ++i) {
-    auto tmp_s = snp;
-    tmp_s += idx[i];
-    tmp_s.Flip();
-  }
-}
-void Keep(uint8_t *src_geno, uint8_t *dest_geno, size_t num_src_samples,
-          size_t num_dest_samples, size_t num_snps, const int32_t *idx) {
-  snplib::SNP src_snp(src_geno, num_src_samples);
-  auto num_full_bytes = num_dest_samples / 4;
-  auto num_samples_left = num_dest_samples % 4;
-  auto num_bytes = num_full_bytes + (num_samples_left > 0 ? 1 : 0);
-  for (size_t l = 0; l < num_snps; ++l) {
-    auto *tmp_g = dest_geno + l * num_bytes;
-    for (size_t i = 0; i < num_full_bytes; ++i) {
-      uint8_t t = src_snp(idx[4 * i]);
-      t += src_snp(idx[4 * i + 1]) << 2;
-      t += src_snp(idx[4 * i + 2]) << 4;
-      t += src_snp(idx[4 * i + 3]) << 6;
-      tmp_g[i] = t;
-    }
-    if (num_samples_left > 0) {
-      uint8_t t = 0;
-      for (size_t i = 0; i < num_samples_left; ++i) {
-        t += src_snp(idx[4 * num_full_bytes + i]) << (2 * i);
-      }
-      tmp_g[num_full_bytes] = t;
-    }
-    ++src_snp;
-  }
-}
+}  // namespace snplib

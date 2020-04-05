@@ -1,12 +1,11 @@
-#ifndef SNPLIB_SNP_H
-#define SNPLIB_SNP_H
+#ifndef _SNPLIB_SRC_SNP_H_
+#define _SNPLIB_SRC_SNP_H_
 
 #include <array>
 #include <cassert>
 #include <cstring>
 
 namespace snplib {
-
 class SNP {
  private:
   uint8_t *geno_;
@@ -34,7 +33,7 @@ class SNP {
     assert(idx < num_samples_);
     auto i = idx / 4;
     auto s = idx % 4;
-    return ((*this)[i] >> (2 * s)) & 3u;
+    return geno_[i] >> (2 * s) & 3u;
   }
   SNP &operator++() {
     geno_ += num_bytes_;
@@ -49,16 +48,16 @@ class SNP {
     geno_ += idx * num_bytes_;
     return *this;
   }
-  void Unpack(double *geno_d, double *mask_d) const;
-  void Unpack(double *geno_d, const std::array<double, 4> &geno_table) const;
   void Flip();
   template <class T>
   void Copy(T *dest) const {
     memcpy((void *)dest, (const void *)geno_, sizeof(uint8_t) * num_bytes_);
   }
+  void UnpackGeno(double *geno_d, double *mask_d);
+  void UnpackGeno(double *geno_d, const std::array<double, 4> &geno_table);
   void TransposeUGeno(size_t num_snps, size_t idx, uint64_t *geno64);
   void TransposeSGeno(size_t num_snps, uint64_t *geno64);
 };
 }  // namespace snplib
 
-#endif  // SNPLIB_SNP_H
+#endif  // _SNPLIB_SRC_SNP_H_
