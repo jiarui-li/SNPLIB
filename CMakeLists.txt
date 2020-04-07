@@ -5,4 +5,4 @@ add_subdirectory(pybind11)
 
 add_definitions(-DUSE_OPENBLAS)
 
-add_library(_SNPLIB MODULE src/snp.cc src/data_manage.cc src/basic_statistics.cc src/relationship_matrix.cc src/relationship_matrix.h src/logistic_regression.h)
+add_library(_SNPLIB MODULE src/snp.cc src/data_manage.cc src/statistics.cc src/relationships.cc src/genetic_variances.cc src/gwas.cc src/uni_lmm.cc src/multi_lmm.cc)

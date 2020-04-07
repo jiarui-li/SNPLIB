@@ -1,0 +1,4 @@
+#ifndef _SNPLIB_SRC_UNI_LMM_H_
+#define _SNPLIB_SRC_UNI_LMM_H_
+
+#endif //_SNPLIB_SRC_UNI_LMM_H_
