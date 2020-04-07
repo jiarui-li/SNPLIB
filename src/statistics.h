@@ -3,6 +3,11 @@
 
 #include <thread>
 #include <vector>
+#ifdef _MSC_VER
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
 
 #include "logistc_regression.h"
 #include "snp.h"

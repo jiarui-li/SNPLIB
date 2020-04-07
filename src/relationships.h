@@ -3,6 +3,11 @@
 
 #include <thread>
 #include <vector>
+#ifdef _MSC_VER
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
 
 #include "logistc_regression.h"
 #include "snp.h"
@@ -27,6 +32,6 @@ void CalcKINGMatrix(uint8_t *geno, size_t num_samples, size_t num_snps,
                     double *matrix, size_t num_threads);
 void CalcUGRMMatrix(uint8_t *geno, size_t num_samples, size_t num_snps,
                     double *matrix, size_t num_threads);
-}  // namespace
+}  // namespace snplib
 
 #endif  //_SNPLIB_SRC_RELATIONSHIPS_H_
