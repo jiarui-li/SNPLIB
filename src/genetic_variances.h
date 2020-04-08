@@ -1,9 +1,11 @@
 #ifndef _SNPLIB_SRC_GENETIC_VARIANCES_H_
 #define _SNPLIB_SRC_GENETIC_VARIANCES_H_
 
+#include <atomic>
 #include <thread>
 #include <vector>
 
+#include "line_search.h"
 #include "multi_lmm.h"
 #include "snp.h"
 #include "uni_lmm.h"

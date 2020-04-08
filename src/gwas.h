@@ -4,6 +4,7 @@
 #include <thread>
 #include <vector>
 
+#include "line_search.h"
 #include "logistc_regression.h"
 #include "snp.h"
 #include "uni_lmm.h"
