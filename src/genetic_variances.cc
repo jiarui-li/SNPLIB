@@ -1,7 +1,10 @@
 #include "genetic_variances.h"
 
-namespace snplib {
+namespace {
 std::atomic_size_t ind;
+}
+
+namespace snplib {
 void CalcUniLMMThread(const double *traits, const double *covariates,
                       const double *lambda, size_t num_samples,
                       size_t num_covariates, size_t num_traits, double *vars,

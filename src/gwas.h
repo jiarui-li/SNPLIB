@@ -1,6 +1,7 @@
 #ifndef _SNPLIB_SRC_GWAS_H_
 #define _SNPLIB_SRC_GWAS_H_
 
+#include <atomic>
 #include <thread>
 #include <vector>
 

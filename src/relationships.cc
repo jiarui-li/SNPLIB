@@ -480,6 +480,49 @@ void CalcIBSMatrixThread(uint8_t *geno, size_t num_samples, size_t num_snps,
   delete[] geno64;
   delete[] mask64;
 }
+void CalcIBSMatrix(uint8_t *geno, size_t num_samples, size_t num_snps,
+                   double *matrix, size_t num_threads) {
+  std::vector<std::thread> workers(num_threads);
+  auto *matrices = new uint64_t[num_samples * num_samples * num_threads];
+  auto num_snps_job = num_snps / num_threads + 1;
+  auto num_snps_left = num_snps % num_threads;
+  auto num_full_bytes = num_samples / 4;
+  auto num_samples_left = num_samples % 4;
+  auto num_bytes = num_full_bytes + (num_samples_left > 0 ? 1 : 0);
+  for (size_t i = 0; i < num_snps_left; ++i) {
+    workers[i] =
+        std::thread(CalcIBSMatrixThread, geno, num_samples, num_snps_job,
+                    matrices + i * num_samples * num_samples);
+    geno += num_snps_job * num_bytes;
+  }
+  --num_snps_job;
+  for (size_t i = num_snps_left; i < num_threads; ++i) {
+    workers[i] =
+        std::thread(CalcIBSMatrixThread, geno, num_samples, num_snps_job,
+                    matrices + i * num_samples * num_samples);
+    geno += num_snps_job * num_bytes;
+  }
+  for (auto &&iter : workers) {
+    iter.join();
+  }
+  auto *matrix_u = matrices;
+  for (size_t k = 1; k < num_threads; ++k) {
+    auto *tmp_m = matrices + k * num_samples * num_samples;
+    for (size_t i = 0; i < num_samples; ++i) {
+      for (size_t j = i; j < num_samples; ++j) {
+        matrix_u[i * num_samples + j] += tmp_m[i * num_samples + j];
+      }
+    }
+  }
+  for (size_t i = 0; i < num_samples; ++i) {
+    for (size_t j = i; j < num_samples; ++j) {
+      matrix[i * num_samples + j] =
+          static_cast<double>(matrix_u[i * num_samples + j]) / num_snps / 2.0;
+      matrix[j * num_samples + i] = matrix[i * num_samples + j];
+    }
+  }
+  delete[] matrices;
+}
 void CalcIBSConnectThread(uint8_t *src_geno, size_t num_src_samples,
                           uint8_t *dest_geno, size_t num_dest_samples,
                           size_t num_snps, uint64_t *connection) {
@@ -528,6 +571,51 @@ void CalcIBSConnectThread(uint8_t *src_geno, size_t num_src_samples,
   delete[] src_mask64;
   delete[] dest_geno64;
   delete[] dest_mask64;
+}
+void CalcIBSConnection(uint8_t *src_geno, size_t num_src_samples,
+                       uint8_t *dest_geno, size_t num_dest_samples,
+                       size_t num_snps, double *connection,
+                       size_t num_threads) {
+  std::vector<std::thread> workers(num_threads);
+  auto *connects = new uint64_t[num_dest_samples * num_threads];
+  auto num_src_full_bytes = num_src_samples / 4;
+  auto num_src_samples_left = num_src_samples % 4;
+  auto num_src_bytes = num_src_full_bytes + (num_src_samples_left > 0 ? 1 : 0);
+  auto num_dest_full_bytes = num_dest_samples / 4;
+  auto num_dest_samples_left = num_dest_samples % 4;
+  auto num_dest_bytes =
+      num_dest_full_bytes + (num_dest_samples_left > 0 ? 1 : 0);
+  auto num_snps_job = num_snps / num_threads + 1;
+  auto num_snps_left = num_snps % num_threads;
+  for (size_t i = 0; i < num_snps_left; ++i) {
+    workers[i] = std::thread(CalcIBSConnectThread, src_geno, num_src_samples,
+                             dest_geno, num_dest_samples, num_snps_job,
+                             connects + i * num_dest_samples);
+    src_geno += num_snps_job * num_src_bytes;
+    dest_geno += num_snps_job * num_dest_bytes;
+  }
+  --num_snps_job;
+  for (size_t i = num_snps_left; i < num_threads; ++i) {
+    workers[i] = std::thread(CalcIBSConnectThread, src_geno, num_src_samples,
+                             dest_geno, num_dest_samples, num_snps_job,
+                             connects + i * num_dest_samples);
+    src_geno += num_snps_job * num_src_bytes;
+    dest_geno += num_snps_job * num_dest_bytes;
+  }
+  for (auto &&iter : workers) {
+    iter.join();
+  }
+  auto *connect_u = connects;
+  for (size_t i = 1; i < num_threads; ++i) {
+    auto *tmp_c = connects + i * num_dest_samples;
+    for (size_t j = 0; j < num_dest_samples; ++j) {
+      connect_u[j] += tmp_c[j];
+    }
+  }
+  for (size_t i = 0; i < num_dest_samples; ++i) {
+    connection[i] = static_cast<double>(connect_u[i]) / num_snps / 2.0;
+  }
+  delete[] connects;
 }
 }  // namespace snplib
 

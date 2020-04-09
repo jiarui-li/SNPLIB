@@ -3,13 +3,8 @@
 
 #include <algorithm>
 #include <cmath>
-#ifdef USE_MKL
-#include <mkl.h>
-#endif
-#ifdef USE_OPENBLAS
-#include <cblas.h>
-#include <lapacke.h>
-#endif
+
+#include "math_lib.h"
 
 namespace snplib {
 template <int P>

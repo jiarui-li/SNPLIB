@@ -24,7 +24,7 @@ void CalcGRMMatrix(uint8_t *geno, const double *af, size_t num_samples,
 void CalcGCTADiagonal(uint8_t *geno, const double *af, size_t num_samples,
                       size_t num_snps, double *diagnol, size_t num_threads);
 void CalcIBSMatrix(uint8_t *geno, size_t num_samples, size_t num_snps,
-                   double *ibs, size_t num_threads);
+                   double *matrix, size_t num_threads);
 void CalcIBSConnection(uint8_t *src_geno, size_t num_src_samples,
                        uint8_t *dest_geno, size_t num_dest_samples,
                        size_t num_snps, double *connection, size_t num_threads);

@@ -49,29 +49,6 @@ void CalcAdjustedMAFThread(uint8_t *geno, size_t num_samples, size_t num_snps,
   delete[] mask_d;
   delete[] geno_d;
 }
-void CalcSNPGFTThread(const double *covariates, const double *af, uint8_t *geno,
-                      size_t num_samples, size_t num_covariates,
-                      size_t num_snps, double *gft) {
-  snplib::SNP snp(geno, num_samples);
-  auto *geno_d = new double[num_samples];
-  auto *mask_d = new double[num_samples];
-  snplib::LogisticRegress<2> worker(num_samples, num_covariates);
-  for (size_t l = 0; l < num_snps; ++l) {
-    auto aff = std::log(af[l]);
-    auto laff = std::log(1.0 - af[l]);
-    snp.UnpackGeno(geno_d, mask_d);
-    worker.Estimate(covariates, geno_d, mask_d);
-    gft[l] = worker.CalcLikelihood(covariates, geno_d, mask_d);
-    double gg = 0.0;
-    for (size_t i = 0; i < num_samples; ++i) {
-      gg += mask_d[i] * (geno_d[i] * aff + (2.0 - geno_d[i]) * laff);
-    }
-    gft[l] -= gg;
-    ++snp;
-  }
-  delete[] geno_d;
-  delete[] mask_d;
-}
 }  // namespace
 
 namespace snplib {
@@ -173,34 +150,6 @@ void CalcAdjustedMAF(uint8_t *geno, size_t num_samples, size_t num_snps,
                              num_snps_job, covariates, num_covariates, min_maf);
     geno += num_bytes * num_snps_job;
     min_maf += num_snps_job;
-  }
-  for (auto &&iter : workers) {
-    iter.join();
-  }
-}
-void CalcSNPGFT(const double *covariates, const double *af, uint8_t *geno,
-                size_t num_samples, size_t num_covariates, size_t num_snps,
-                double *gft, size_t num_threads) {
-  std::vector<std::thread> workers(num_threads);
-  auto num_snps_job = num_snps / num_threads + 1;
-  auto num_snps_left = num_snps % num_threads;
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + (num_samples_left > 0 ? 1 : 0);
-  for (size_t i = 0; i < num_snps_left; ++i) {
-    workers[i] = std::thread(CalcSNPGFTThread, covariates, af, geno,
-                             num_samples, num_covariates, num_snps_job, gft);
-    geno += num_bytes * num_snps_job;
-    af += num_snps_job;
-    gft += num_snps_job;
-  }
-  --num_snps_job;
-  for (size_t i = num_snps_left; i < num_threads; ++i) {
-    workers[i] = std::thread(CalcSNPGFTThread, covariates, af, geno,
-                             num_samples, num_covariates, num_snps_job, gft);
-    geno += num_bytes * num_snps_job;
-    af += num_snps_job;
-    gft += num_snps_job;
   }
   for (auto &&iter : workers) {
     iter.join();

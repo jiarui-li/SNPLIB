@@ -362,7 +362,7 @@ void MultiLMMRML::VectorizeTraits(const double *traits) {
   }
 }
 MultiLMMRML::MultiLMMRML(const double *lambda, size_t num_samples,
-                         size_t num_covariates_, size_t num_dims)
+                         size_t num_covariates, size_t num_dims)
     : num_samples_(num_samples),
       num_covariates_(num_covariates),
       num_para_dims_(num_dims * (num_dims + 1)),

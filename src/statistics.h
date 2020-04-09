@@ -23,9 +23,6 @@ void CalcAdjustedAF(uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcAdjustedMAF(uint8_t *geno, size_t num_samples, size_t num_snps,
                      double *covariates, size_t num_covariates, double *min_maf,
                      size_t num_threads);
-void CalcSNPGFT(const double *covariates, const double *af, uint8_t *geno,
-                size_t num_samples, size_t num_covariates, size_t num_snps,
-                double *gft, size_t num_threads);
 }  // namespace snplib
 
 #endif  //_SNPLIB_SRC_STATISTICS_H_

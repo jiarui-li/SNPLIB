@@ -4,9 +4,40 @@ import sys
 import platform
 import subprocess
 
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, find_packages, Command, Extension
 from setuptools.command.build_ext import build_ext
 from distutils.version import LooseVersion
+
+
+def get_extra_cmake_options():
+    _cmake_extra_options = []
+
+    opt_key = None
+    argv = [arg for arg in sys.argv]
+
+    for arg in argv:
+        if opt_key == 'use_mkl':
+            _cmake_extra_options.append('-DUSE_MKL')
+        elif opt_key == 'intel_root':
+            _cmake_extra_options.append(
+                '-DINTEL_ROOT={arg}'.format(arg=arg.strip()))
+        elif opt_key == 'use_openblas':
+            _cmake_extra_options.append('-DUSE_OPENBLAS')
+        elif opt_key == 'openblas_root':
+            _cmake_extra_options.append(
+                '-DOPENBLAS_ROOT={arg}'.format(arg=arg.strip()))
+
+        if opt_key:
+            sys.argv.remove(arg)
+            opt_key = None
+            continue
+
+        if arg in ['--use_mkl', '--use_openblas', '--intel_root', '--openblas_root']:
+            opt_key = arg[2:].lower()
+            sys.argv.remove(arg)
+            continue
+
+    return _cmake_extra_options
 
 
 class CMakeExtension(Extension):
@@ -41,6 +72,8 @@ class CMakeBuild(build_ext):
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
                       '-DPYTHON_EXECUTABLE=' + sys.executable]
 
+        cmake_args += get_extra_cmake_options()
+
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
 
@@ -67,6 +100,9 @@ class CMakeBuild(build_ext):
 
 setup(
     name="SNPLIB",
+    license="BSD 3-Clause License",
     packages=['SNPLIB'],
-    ext_modules=[CMakeExtension('_SNPLIB')]
+    ext_modules=[CMakeExtension('_SNPLIB')],
+    cmdclass=dict(build_ext=CMakeBuild),
+    zip_safe=False,
 )
