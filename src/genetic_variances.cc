@@ -112,6 +112,7 @@ void CalcMLMMSigmas(const double *covariates, const double *lambda,
                     size_t num_samples, size_t num_covariates, size_t num_dims,
                     size_t num_traits, double *sigma_e, double *sigma_g,
                     size_t num_threads) {
+  set_num_threads(1);
   std::vector<std::thread> workers(num_threads);
   ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {
@@ -165,6 +166,7 @@ void CalcRMLMMSigmas(const double *lambda, double *res, double *vars,
                      size_t num_samples, size_t num_covariates, size_t num_dims,
                      size_t num_traits, double *sigma_e, double *sigma_g,
                      size_t num_threads) {
+  set_num_threads(1);
   std::vector<std::thread> workers(num_threads);
   ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {

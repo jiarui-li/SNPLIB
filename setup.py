@@ -9,37 +9,6 @@ from setuptools.command.build_ext import build_ext
 from distutils.version import LooseVersion
 
 
-def get_extra_cmake_options():
-    _cmake_extra_options = []
-
-    opt_key = None
-    argv = [arg for arg in sys.argv]
-
-    for arg in argv:
-        if opt_key == 'use_mkl':
-            _cmake_extra_options.append('-DUSE_MKL')
-        elif opt_key == 'intel_root':
-            _cmake_extra_options.append(
-                '-DINTEL_ROOT={arg}'.format(arg=arg.strip()))
-        elif opt_key == 'use_openblas':
-            _cmake_extra_options.append('-DUSE_OPENBLAS')
-        elif opt_key == 'openblas_root':
-            _cmake_extra_options.append(
-                '-DOPENBLAS_ROOT={arg}'.format(arg=arg.strip()))
-
-        if opt_key:
-            sys.argv.remove(arg)
-            opt_key = None
-            continue
-
-        if arg in ['--use_mkl', '--use_openblas', '--intel_root', '--openblas_root']:
-            opt_key = arg[2:].lower()
-            sys.argv.remove(arg)
-            continue
-
-    return _cmake_extra_options
-
-
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=''):
         Extension.__init__(self, name, sources=[])
@@ -47,6 +16,7 @@ class CMakeExtension(Extension):
 
 
 class CMakeBuild(build_ext):
+
     def run(self):
         try:
             out = subprocess.check_output(['cmake', '--version'])
@@ -72,12 +42,52 @@ class CMakeBuild(build_ext):
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
                       '-DPYTHON_EXECUTABLE=' + sys.executable]
 
-        cmake_args += get_extra_cmake_options()
+        blas_library = input('Use Intel MKL(m) or OpenBLAS(o)?')
+        blas_library = blas_library.lower()[0]
+        while blas_library not in ['m', 'o']:
+            blas_library = input('Use Intel MKL(m) or OpenBLAS(o)?')
+            blas_library = blas_library.lower()[0]
+
+        pf = platform.system()
+        intel_root = None
+        if blas_library == 'm':
+            cmake_args += ['-DUSE_MKL=ON']
+            if pf == "Windows":
+                intel_default_root = 'C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows'
+            if pf == "Linux":
+                intel_default_root = '/opt/intel'
+            if pf == "Darwin":
+                intel_default_root = '/opt/intel'
+            intel_root = input(
+                'The directory of Intel MKL [{}]: '.format(intel_default_root))
+            if not intel_root:
+                intel_root = intel_default_root
+
+            if not os.path.exists(intel_root):
+                raise RuntimeError(
+                    "Intel MKL must be installed in {}".format(intel_root))
+            cmake_args += ['-DINTEL_ROOT={}'.format(intel_root)]
+        elif blas_library == 'o':
+            cmake_args += ['-DUSE_OPENBLAS']
+            if pf == "Windows":
+                openblas_default_root = 'C:/opt'
+            if pf == "Linux":
+                openblas_default_root = '/usr/local'
+            if pf == 'Darwin':
+                openblas_default_root = '/usr/local'
+            openblas_root = input(
+                'The directory of OpenBLAS [{}]: '.format(openblas_default_root))
+            if not openblas_root:
+                openblas_root = openblas_default_root
+
+            if not os.path.exists(openblas_root):
+                raise RuntimeError(
+                    "OpenBLAS must be installed in {}".format(openblas_root))
+            cmake_args += ['-DOPENBLAS_ROOT={}'.format(openblas_root)]
 
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
-
-        if platform.system() == "Windows":
+        if pf == "Windows":
             cmake_args += [
                 '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
             if sys.maxsize > 2**32:
@@ -100,8 +110,8 @@ class CMakeBuild(build_ext):
 
 setup(
     name="SNPLIB",
-    license="BSD 3-Clause License",
     packages=['SNPLIB'],
+    license="BSD 3-Clause License",
     ext_modules=[CMakeExtension('_SNPLIB')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,

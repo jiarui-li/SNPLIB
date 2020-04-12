@@ -303,5 +303,85 @@ std::tuple<array, array> CalcRMLMMSigmas(array lambda, array res, array vars,
                           sigma_g_ptr, num_threads);
   return std::make_tuple(sigma_e, sigma_g);
 }
-
+std::tuple<array, array> CalcMLMMSigmas_p(array traits, array covariates,
+                                          array lambda, array res, array vars,
+                                          size_t num_threads) {
+  set_num_threads(num_threads);
+  auto traits_buf = traits.request();
+  auto num_samples = static_cast<size_t>(traits_buf.shape[0]);
+  auto num_dims = static_cast<size_t>(traits_buf.shape[1]);
+  auto *traits_ptr = reinterpret_cast<double *>(traits_buf.ptr);
+  auto cov_buf = covariates.request();
+  auto num_covariates = static_cast<size_t>(cov_buf.shape[1]);
+  auto *cov_ptr = reinterpret_cast<double *>(cov_buf.ptr);
+  auto lambda_buf = lambda.request();
+  auto *lambda_ptr = reinterpret_cast<double *>(lambda_buf.ptr);
+  auto res_buf = res.request();
+  auto *res_ptr = reinterpret_cast<double *>(res_buf.ptr);
+  auto vars_buf = vars.request();
+  auto *vars_ptr = reinterpret_cast<double *>(vars_buf.ptr);
+  array sigma_e(std::array<size_t, 2>{num_dims, num_dims});
+  array sigma_g(std::array<size_t, 2>{num_dims, num_dims});
+  auto sigma_e_buf = sigma_e.request();
+  auto *sigma_e_ptr = reinterpret_cast<double *>(sigma_e_buf.ptr);
+  auto sigma_g_buf = sigma_g.request();
+  auto *sigma_g_ptr = reinterpret_cast<double *>(sigma_g_buf.ptr);
+  snplib::MultiLMMREML worker(lambda_ptr, cov_ptr, num_samples, num_covariates,
+                              num_dims);
+  snplib::LineSearch<snplib::MultiLMMREML> searcher(worker);
+  worker.CalcInitialGuess(traits_ptr, res_ptr, vars_ptr);
+  double a;
+  double f_old = worker.CalcLikelihood();
+  double f_new = f_old;
+  for (size_t i = 0; i < 15; ++i) {
+    f_old = f_new;
+    worker.CalcEMStep();
+    f_new = worker.CalcLikelihood();
+  }
+  f_old = worker.CalcLikelihood();
+  worker.UpdateGradients();
+  f_new = f_old;
+  for (size_t l = 0; l < 50 * num_dims * num_dims; ++l) {
+    f_old = f_new;
+    worker.BackupVars();
+    worker.UpdateHessian();
+    worker.CalcAIStep();
+    a = searcher.Search(f_old);
+    f_new = searcher.GetFNew();
+    if ((f_old - f_new) < 1e-8 * (1.0 + std::fabs(f_old))) {
+      break;
+    }
+  }
+  worker.GetSigmaE(sigma_e_ptr);
+  worker.GetSigmaG(sigma_g_ptr);
+  return std::make_tuple(sigma_e, sigma_g);
+}
 // GWAS TODO
+
+// Pybind11 interface
+PYBIND11_MODULE(_SNPLIB, m) {
+  m.def("FlipGeno", &FlipGeno, "Flip the genotype");
+  m.def("Keep", &Keep, "Keep the selected individuals");
+  m.def("UnpackGRMGeno", &UnpackGRMGeno,
+        "Unpack the genotype data into the standardized format");
+  m.def("UnpackUGeno", &UnpackUGeno,
+        "Unpack the genotype data into the unnormalized format");
+  m.def("CalcAlleleFrequencies", &CalcAlleleFrequencies,
+        "Calculate SNPs' allele frequencies");
+  m.def("CalcMissing", &CalcMissing, "Calculate SNPs' missingness");
+  m.def("CalcAdjustedAF", &CalcAdjustedAF,
+        "Calculate SNPs' ancestry adjusted AF");
+  m.def("CalcAdjustedMAF", &CalcAdjustedMAF, "");
+  m.def("CalcAdjustedGRM", &CalcAdjustedGRM, "");
+  m.def("CalcAdmixedGRM", &CalcAdmixedGRM, "");
+  m.def("CalcGRMMatrix", &CalcGRMMatrix, "");
+  m.def("CalcGCTADiagonal", &CalcGCTADiagonal, "");
+  m.def("CalcIBSMatrix", &CalcIBSMatrix, "");
+  m.def("CalcIBSConnection", &CalcIBSConnection, "");
+  m.def("CalcKINGMatrix", &CalcKINGMatrix, "");
+  m.def("CalcUGRMMatrix", &CalcUGRMMatrix, "");
+  m.def("CalcUniLMM", &CalcUniLMM, "");
+  m.def("CalcMLMMSigmas", &CalcMLMMSigmas, "");
+  m.def("CalcRMLMMSigmas", &CalcRMLMMSigmas, "");
+  m.def("CalcMLMMSigmas_p", &CalcMLMMSigmas_p, "");
+}

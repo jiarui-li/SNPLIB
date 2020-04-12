@@ -33,6 +33,7 @@ void CalcLogisticGWASThread(const double *trait, const double *covariates,
 void CalcLogisticGWAS(const double *trait, const double *covariates,
                       uint8_t *geno, size_t num_samples, size_t num_covariates,
                       size_t num_snps, double *chi2stat, size_t num_threads) {
+  set_num_threads(1);
   std::vector<std::thread> workers(num_threads);
   auto num_snps_job = num_snps / num_threads + 1;
   auto num_snps_left = num_snps % num_threads;

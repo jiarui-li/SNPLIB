@@ -68,6 +68,7 @@ void CalcAdmixedGRMthread(uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcAdjustedGRM(uint8_t *geno, size_t num_samples, size_t num_snps,
                      double *covariates, size_t num_covariates, double *matrix,
                      double *gcta_diag, size_t num_threads) {
+  set_num_threads(1);
   std::vector<std::thread> workers(num_threads);
   auto *matrices = new double[num_samples * num_samples * num_threads];
   auto *diags = new double[num_samples * num_threads];
@@ -119,6 +120,7 @@ void CalcAdjustedGRM(uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcAdmixedGRM(uint8_t *geno, size_t num_samples, size_t num_snps,
                     double *pop_af, double *pop, size_t num_pops,
                     double *matrix, double *gcta_diag, size_t num_threads) {
+  set_num_threads(1);
   std::vector<std::thread> workers(num_threads);
   auto *matrices = new double[num_samples * num_samples * num_threads];
   auto *diags = new double[num_samples * num_threads];

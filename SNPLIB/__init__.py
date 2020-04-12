@@ -1,1 +1,1 @@
-from _SNPLIB import *
+import _SNPLIB as lib
