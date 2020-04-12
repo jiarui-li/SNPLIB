@@ -26,9 +26,14 @@ if(USE_MKL)
 endif()
 
 if(USE_OPENBLAS)
-
+    add_definitions(-DUSE_OPENBLAS)
+    message(STATUS "Using OpenBLAS installed in ${OPENBLAS_ROOT}")
+    find_library(OPENBLAS NAMES libopenblas.a PATHS ${OPENBLAS_ROOT}/lib)
+    set(CMAKE_CXX_FLAGS "-march=native -O3 -fPIC -flto -fvisibility=hidden")
+    set(LINK_LIBRARIES ${OPENBLAS} pthread m dl gfortran quadmath)
+    include_directories(${OPENBLAS_ROOT}/include)
 endif()
 
-add_library(_SNPLIB MODULE src/snp.cc src/data_manage.cc src/statistics.cc src/relationships.cc src/genetic_variances.cc src/gwas.cc src/uni_lmm.cc src/multi_lmm.cc src/python_wrapper.cc)
+add_library(_SNPLIB MODULE src/snp.cc src/data_manage.cc src/statistics.cc src/relationships.cc src/genetic_variances.cc src/gwas.cc src/uni_lmm.cc src/multi_lmm.cc src/python_wrapper.cc src/simulations.cc src/simulations.h)
 target_link_libraries(_SNPLIB PRIVATE pybind11::module ${LINK_LIBRARIES})
 set_target_properties(_SNPLIB PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}" SUFFIX "${PYTHON_MODULE_EXTENSION}")

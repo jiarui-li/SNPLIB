@@ -358,6 +358,10 @@ std::tuple<array, array> CalcMLMMSigmas_p(array traits, array covariates,
 }
 // GWAS TODO
 
+
+// Simulations
+
+
 // Pybind11 interface
 PYBIND11_MODULE(_SNPLIB, m) {
   m.def("FlipGeno", &FlipGeno, "Flip the genotype");

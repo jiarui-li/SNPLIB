@@ -1,6 +1,7 @@
 #ifndef _SNPLIB_SRC_DATA_MANAGE_H_
 #define _SNPLIB_SRC_DATA_MANAGE_H_
 
+#include <cmath>
 #include <vector>
 #ifdef _MSC_VER
 #include <intrin.h>

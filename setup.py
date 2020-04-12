@@ -68,7 +68,7 @@ class CMakeBuild(build_ext):
                     "Intel MKL must be installed in {}".format(intel_root))
             cmake_args += ['-DINTEL_ROOT={}'.format(intel_root)]
         elif blas_library == 'o':
-            cmake_args += ['-DUSE_OPENBLAS']
+            cmake_args += ['-DUSE_OPENBLAS=ON']
             if pf == "Windows":
                 openblas_default_root = 'C:/opt'
             if pf == "Linux":
