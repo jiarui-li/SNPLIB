@@ -80,7 +80,11 @@ void GeneratePairwiseSiblings(uint8_t *parent_geno, size_t num_families,
           p1_g == 1 ? bdis(gen) : p1_g / 2 + p2_g == 1 ? bdis(gen) : p2_g / 2;
       t = t > 0u ? t + 1 : 0;
       auto l = j >> 1;
-      auto k = (2 * j & 3u) << 1;
+      auto k = (j & 1u) << 2;
+      tmp_s[l] += t << k;
+      t = p1_g == 1 ? bdis(gen) : p1_g / 2 + p2_g == 1 ? bdis(gen) : p2_g / 2;
+      k += 2;
+      tmp_s[l] += t << k;
     }
   }
 }
