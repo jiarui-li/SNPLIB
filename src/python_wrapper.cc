@@ -6,6 +6,7 @@
 #include "genetic_variances.h"
 #include "gwas.h"
 #include "relationships.h"
+#include "simulations.h"
 #include "statistics.h"
 
 namespace py = pybind11;
@@ -358,10 +359,58 @@ std::tuple<array, array> CalcMLMMSigmas_p(array traits, array covariates,
 }
 // GWAS TODO
 
-
 // Simulations
-
-
+array UpdateAf(array aaf, size_t num_pops, size_t num_generations,
+               size_t effective_sample_size) {
+  auto aaf_buf = aaf.request();
+  auto *aaf_ptr = reinterpret_cast<double *>(aaf_buf.ptr);
+  auto num_snps = static_cast<size_t>(aaf_buf.size);
+  array af(std::array<size_t, 2>{num_snps, num_pops});
+  auto af_buf = af.request();
+  auto *af_ptr = reinterpret_cast<double *>(af_buf.ptr);
+  snplib::UpdateAf(aaf_ptr, num_pops, num_snps, num_generations,
+                   effective_sample_size, af_ptr);
+  return af;
+}
+geno_t GenerateIndividuals(array af) {
+  auto af_buf = af.request();
+  auto *af_ptr = reinterpret_cast<double *>(af_buf.ptr);
+  auto num_samples = static_cast<size_t>(af_buf.shape[0]);
+  auto num_snps = static_cast<size_t>(af_buf.shape[1]);
+  auto num_full_bytes = num_samples / 4;
+  auto num_samples_left = num_samples % 4;
+  auto num_bytes = num_full_bytes + (num_samples_left != 0 ? 1 : 0);
+  geno_t geno(std::array<size_t, 2>{num_bytes, num_snps});
+  auto geno_buf = geno.request();
+  auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
+  snplib::GenerateIndividuals(af_ptr, num_samples, num_snps, geno_ptr);
+  return geno;
+}
+geno_t GenerateAdmixedIndividuals(array af, size_t num_samples) {
+  auto af_buf = af.request();
+  auto *af_ptr = reinterpret_cast<double *>(af_buf.ptr);
+  auto num_snps = static_cast<size_t>(af_buf.shape[1]);
+  auto num_full_bytes = num_samples / 4;
+  auto num_samples_left = num_samples % 4;
+  auto num_bytes = num_full_bytes + (num_samples_left != 0 ? 1 : 0);
+  geno_t geno(std::array<size_t, 2>{num_bytes, num_snps});
+  auto geno_buf = geno.request();
+  auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
+  snplib::GenerateAdmixedIndividuals(af_ptr, num_snps, num_samples, geno_ptr);
+  return geno;
+}
+geno_t GeneratePairwiseSiblings(geno_t parent_geno, size_t num_families) {
+  auto geno_p_buf = parent_geno.request();
+  auto num_snps = static_cast<size_t>(geno_p_buf.shape[1]);
+  auto *geno_p_ptr = reinterpret_cast<uint8_t *>(geno_p_buf.ptr);
+  auto num_bytes = static_cast<size_t>(geno_p_buf.shape[0]);
+  geno_t geno(std::array<size_t, 2>{num_bytes, num_snps});
+  auto geno_buf = geno.request();
+  auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
+  snplib::GeneratePairwiseSiblings(geno_p_ptr, num_families, num_snps,
+                                   geno_ptr);
+  return geno;
+}
 // Pybind11 interface
 PYBIND11_MODULE(_SNPLIB, m) {
   m.def("FlipGeno", &FlipGeno, "Flip the genotype");
@@ -388,4 +437,8 @@ PYBIND11_MODULE(_SNPLIB, m) {
   m.def("CalcMLMMSigmas", &CalcMLMMSigmas, "");
   m.def("CalcRMLMMSigmas", &CalcRMLMMSigmas, "");
   m.def("CalcMLMMSigmas_p", &CalcMLMMSigmas_p, "");
+  m.def("UpdateAf", &UpdateAf, "");
+  m.def("GenerateIndividuals", &GenerateIndividuals, "");
+  m.def("GenerateAdmixedIndividuals", &GenerateAdmixedIndividuals, "");
+  m.def("GeneratePairwiseSiblings", &GeneratePairwiseSiblings, "");
 }

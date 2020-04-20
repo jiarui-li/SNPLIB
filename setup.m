@@ -22,7 +22,9 @@ switch os
         mkl_seq_libs = ['LINKLIBS=$LINKLIBS ',mkl_root,'/lib/libmkl_intel_lp64.a ',mkl_root,'/lib/libmkl_sequential.a ',mkl_root,'/lib/libmkl_core.a',' -lpthread -lm -ldl'];
         cxxoptim = 'CXXOPTIMFLAGS=$CXXOPTIMFLAGS -O3 -std=c++11 -march=native -pipe -fPIC -flto -mmacosx-version-min=10.7';
 end
-system(['cmake.exe ./matlab -DUSE_MKL=ON -DMKL_ROOT="',mkl_root,'"']);
+mkdir('build')
+cd('build')
+system(['cmake.exe .. -DBUILD_MATLAB=ON -DUSE_MKL=ON -DMKL_ROOT="',mkl_root,'"']);
 system('cmake.exe --build . --config Release');
 
 copyfile('matlab/@SNPLIB/*.m',[install_path,'/@SNPLIB']);

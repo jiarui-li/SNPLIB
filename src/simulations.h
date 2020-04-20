@@ -13,7 +13,7 @@ void GenerateIndividuals(const double *af, size_t num_samples, size_t num_snps,
                          uint8_t *geno);
 void GenerateAdmixedIndividuals(const double *af, size_t num_snps,
                                 size_t num_samples, uint8_t *geno);
-void GeneratePairwiseSiblings(uint8_t *parent_geno, size_t num_samples,
+void GeneratePairwiseSiblings(uint8_t *parent_geno, size_t num_families,
                               size_t num_snps, uint8_t *siblings_geno);
 }  // namespace snplib
 

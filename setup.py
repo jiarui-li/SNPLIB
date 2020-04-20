@@ -40,7 +40,7 @@ class CMakeBuild(build_ext):
             extdir += os.path.sep
 
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-                      '-DPYTHON_EXECUTABLE=' + sys.executable]
+                      '-DPYTHON_EXECUTABLE=' + sys.executable, '-DBUILD_PYTHON=ON']
 
         blas_library = input('Use Intel MKL(m) or OpenBLAS(o)?')
         blas_library = blas_library.lower()[0]
@@ -115,4 +115,5 @@ setup(
     ext_modules=[CMakeExtension('_SNPLIB')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
+    install_requires=["numpy", "scipy"],
 )
