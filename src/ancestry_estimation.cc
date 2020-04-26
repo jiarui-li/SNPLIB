@@ -35,7 +35,7 @@ void CalcPCALoadingsExact(uint8_t *geno, size_t num_samples, size_t num_snps,
 }
 void CalcPCALoadingsApprox(uint8_t *geno, size_t num_samples, size_t num_snps,
                            size_t num_components, double *loadings,
-                           size_t num_threads) {
+                           size_t num_parts, size_t num_threads) {
   std::random_device rd;
   std::mt19937_64 gen(rd());
   std::normal_distribution<double> dist;
@@ -51,29 +51,51 @@ void CalcPCALoadingsApprox(uint8_t *geno, size_t num_samples, size_t num_snps,
   auto *grm = new double[num_samples * num_samples];
   CalcAlleleFrequencies(geno, num_samples, num_snps, af);
   CalcGRMMatrix(geno, af, num_samples, num_snps, grm, num_threads);
+  set_num_threads(num_threads);
   for (size_t i = 0; i < I; ++i) {
     auto *this_G = G + (i + 1) * num_samples * L;
     auto *prev_G = G + i * num_samples * L;
     cblas_dsymm(CblasColMajor, CblasLeft, CblasLower, m, n, 1.0, grm, m, prev_G,
                 m, 0.0, this_G, m);
   }
+  auto num_snps_part = num_snps / num_parts;
   auto *H = new double[num_snps * L * (I + 1)];
+  auto *A = new double[num_samples * num_snps_part];
+  n = static_cast<int32_t>(L * (I + 1));
+  SNP snp(geno, num_samples);
+  std::array<double, 4> geno_table{0.0, 0.0, 0.0, 0.0};
+  for (size_t i = 0; i < num_parts; ++i) {
+    auto *tmp_af = af + i * num_snps_part;
+    auto *tmp_A = A + i * num_snps_part * num_samples;
+    auto *tmp_H = H + i * num_snps_part;
+    for (size_t j = 0; j < num_snps_part; ++j) {
+      auto std = std::sqrt(2.0 * tmp_af[j] * (1.0 - tmp_af[j]));
+      auto mu = 2.0 * tmp_af[j];
+      geno_table = {-mu / std, 0.0, (1.0 - mu) / std, (2.0 - mu) / std};
+      snp.UnpackGeno(tmp_A + j * num_samples, geno_table);
+      ++snp;
+    }
+    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, m, n, )
+  }
   delete[] grm;
   delete[] af;
+  delete[] H;
+  delete[] A;
 }
 void ProjectPCA(uint8_t *dest_geno, size_t num_samples, size_t num_snps,
                 double *loadings, size_t num_components, double *scores,
-                size_t num_threads);
+                size_t num_parts, size_t num_threads) {}
 void CalcSUGIBSLoadingsExact(uint8_t *geno, size_t num_samples, size_t num_snps,
                              size_t num_components, double *loadings,
-                             size_t num_threads);
+                             size_t num_threads) {}
 void CalcSUGIBSLoadingsApprox(uint8_t *geno, size_t num_samples,
                               size_t num_snps, size_t num_components,
-                              double *loadings, size_t num_threads);
+                              double *loadings, size_t num_parts,
+                              size_t num_threads) {}
 void ProjectSUGIBS(uint8_t *src_geno, size_t num_src_samples,
                    uint8_t *dest_geno, size_t num_dest_samples, size_t num_snps,
                    double *loadings, size_t num_components, double *scores,
-                   size_t num_threads);
+                   size_t num_parts, size_t num_threads) {}
 void CalcUPCALoadingsExact(uint8_t *geno, size_t num_samples, size_t num_snps,
                            size_t num_components, double *loadings,
                            size_t num_threads) {
@@ -102,11 +124,11 @@ void CalcUPCALoadingsExact(uint8_t *geno, size_t num_samples, size_t num_snps,
   delete[] geno_d;
   delete[] u;
 }
-}  // namespace snplib
+
 void CalcUPCALoadingsApprox(uint8_t *geno, size_t num_samples, size_t num_snps,
                             size_t num_components, double *loadings,
-                            size_t num_threads);
+                            size_t num_parts, size_t num_threads) {}
 void ProjectUPCA(uint8_t *dest_geno, size_t num_samples, size_t num_snps,
                  double *loadings, size_t num_components, double *scores,
-                 size_t num_threads);
+                 size_t num_parts, size_t num_threads) {}
 }  // namespace snplib
