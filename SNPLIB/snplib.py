@@ -106,3 +106,78 @@ class SNPLIB:
 
     def CalcUGRMMatrix(self):
         return lib.CalcUGRMMatrix(self.GENO, self.nSamples, self.nThreads)
+
+    def FindUnrelated(self, threshold=0.044):
+        king = self.CalcKINGMatrix()
+        R = np.zeros((self.nSamples, self.nSamples))
+        R[king > threshold] = 1
+        r = np.sum(R, axis=0)
+
+    # Ancestry Estimation
+
+    def CalcPCAScores(self, nComponents):
+        grm = self.CalcGRMMatrix()
+        w, V = npl.eig(grm)
+        ind = np.argsort(-w)
+        return V[:, ind[:nComponents]]
+
+    def CalcPCALoadingsExact(self, nComponents):
+        af = self.CalcAlleleFrequencies()
+        A = lib.UnpackGRMGeno(self.GENO, af, self.nSamples)
+        U, s, _ = npl.svd(A.T, full_matrices=False)
+        S = np.diag(s[:nComponents])
+        U = U[:, :nComponents]
+        return npl.solve(S, U.T)
+
+    def ProjectPCA(self, ref_obj, loadings, nParts=10):
+        nSNPsPart = self.nSNPs//nParts
+        af = ref_obj.CalcAlleleFrequencies()
+        nComponents = loadings.shape[0]
+        scores = np.zeros((nComponents, self.nSamples))
+        for i in range(nParts):
+            A = lib.UnpackGRMGeno(
+                self.GENO[:, i*nSNPsPart:(i+1)*nSNPsPart], af[i*nSNPsPart:(i+1)*nSNPsPart], self.nSamples)
+            scores = scores + loadings[:, i*nSNPsPart:(i+1)*nSNPsPart]@A
+
+        A = lib.UnpackGRMGeno(
+            self.GENO[:, nParts*nSNPsPart:], af[nParts*nSNPsPart:], self.nSamples)
+        scores = scores + loadings[:, nParts*nSNPsPart:]@A
+        return scores.T
+
+    def CalcSUGIBSScores(self, nComponents):
+        ibs = self.CalcIBSMatrix()
+        d = np.sum(ibs, axis=0)
+        ugrm = self.CalcUGRMMatrix()
+        D = np.diag(d**-0.5)
+        I = D@ugrm@D
+        w, V = npl.eig(I)
+        ind = np.argsort(-w)
+        return D@V[:, ind[1:nComponents+1]]
+
+    def CalcSUGIBSLoadingsExact(self, nComponents):
+        ibs = self.CalcIBSMatrix()
+        d = np.sum(ibs, axis=0)
+        D = np.diag(d**-0.5)
+        A = lib.UnpackUGeno(self.GENO, self.nSamples)
+        A = D@A.T
+        U, s, _ = npl.svd(A, full_matrices=False)
+        S = np.diag(s[1:nComponents+1])
+        U = U[:, 1:nComponents+1]
+        return npl.solve(S, U.T)
+
+    def ProjectSUGIBS(self, ref_obj, loadings, nParts=10):
+        nSNPsPart = self.nSNPs//nParts
+        nComponents = loadings.shape[0]
+        scores = np.zeros((nComponents, self.nSamples))
+        for i in range(nParts):
+            A = lib.UnpackUGeno(
+                self.GENO[:, i*nSNPsPart:(i+1)*nSNPsPart], self.nSamples)
+            scores = scores + loadings[:, i*nSNPsPart:(i+1)*nSNPsPart]@A
+
+        A = lib.UnpackUGeno(
+            self.GENO[:, nParts*nSNPsPart:], self.nSamples)
+        scores = scores + loadings[:, nParts*nSNPsPart:]@A
+        connect = CalcIBSConnection(ref_obj, self, self.nThreads)
+        D = np.diag(connect**-1)
+        scores = scores@D
+        return scores.T
