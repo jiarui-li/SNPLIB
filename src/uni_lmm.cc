@@ -1,6 +1,7 @@
 #include "uni_lmm.h"
 
 namespace snplib {
+
 UniLMM::UniLMM(const double *lambda, const double *covariates,
                size_t num_samples, size_t num_covariates)
     : num_samples_(num_samples),

@@ -1,5 +1,5 @@
-#ifndef _SNPLIB_SRC_LOGISTC_REGRESSION_H_
-#define _SNPLIB_SRC_LOGISTC_REGRESSION_H_
+#ifndef SNPLIB_SRC_LOGISTC_REGRESSION_H_
+#define SNPLIB_SRC_LOGISTC_REGRESSION_H_
 
 #include <algorithm>
 #include <cmath>
@@ -127,4 +127,4 @@ class LogisticRegress {
   const double *GetBeta() const { return beta; }
 };
 }  // namespace snplib
-#endif  //_SNPLIB_SRC_LOGISTC_REGRESSION_H_
+#endif  // SNPLIB_SRC_LOGISTC_REGRESSION_H_

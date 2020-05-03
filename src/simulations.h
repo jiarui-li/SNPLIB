@@ -4,8 +4,6 @@
 #include <algorithm>
 #include <random>
 
-#include "snp.h"
-
 namespace snplib {
 void UpdateAf(const double *aaf, size_t num_pops, size_t num_snps,
               size_t num_generations, size_t effective_sample_size, double *af);

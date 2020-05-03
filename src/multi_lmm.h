@@ -1,13 +1,14 @@
-#ifndef _SNPLIB_SRC_MULTI_LMM_H_
-#define _SNPLIB_SRC_MULTI_LMM_H_
+#ifndef SNPLIB_SRC_MULTI_LMM_H_
+#define SNPLIB_SRC_MULTI_LMM_H_
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 #include "math_lib.h"
 
 namespace snplib {
-class MultiLMMREML {
+class MultiLMM_REML {
  private:
   size_t num_samples_;
   size_t num_covariates_;
@@ -44,17 +45,17 @@ class MultiLMMREML {
   double *step_;
   double *hessian_;
   void FillQ();
-  void VectorizeTraits(const double *traits);
 
  public:
-  MultiLMMREML(const double *lambda, const double *covariates,
-               size_t num_samples, size_t num_covariates, size_t num_dims);
-  ~MultiLMMREML() noexcept;
+  MultiLMM_REML(const double *lambda, const double *covariates,
+                size_t num_samples, size_t num_covariates, size_t num_dims);
+  ~MultiLMM_REML() noexcept;
   double CalcLikelihood();
   void UpdateGradients();
   void UpdateHessian();
   double CalcLineGradient();
-  void CalcInitialGuess(double *traits, double *res, double *vars);
+  void CalcInitialGuess(const double *traits, const double *res,
+                        const double *vars);
   void CalcEMStep();
   void CalcAIStep();
   void BackupVars();
@@ -63,8 +64,7 @@ class MultiLMMREML {
   void GetSigmaE(double *sigma_e);
   void GetSigmaG(double *sigma_g);
 };
-
-class MultiLMMRML {
+class MultiLMM_RML {
  private:
   size_t num_samples_;
   size_t num_covariates_;
@@ -93,17 +93,16 @@ class MultiLMMRML {
   double *gradients_;
   double *step_;
   double *hessian_;
-  void VectorizeTraits(const double *traits);
 
  public:
-  MultiLMMRML(const double *lambda, size_t num_samples, size_t num_covariates_,
-              size_t num_dims);
-  ~MultiLMMRML() noexcept;
+  MultiLMM_RML(const double *lambda, size_t num_samples, size_t num_covariates,
+               size_t num_dims);
+  ~MultiLMM_RML() noexcept;
   double CalcLikelihood();
   void UpdateGradients();
   void UpdateHessian();
   double CalcLineGradient();
-  void CalcInitialGuess(double *res, double *vars);
+  void CalcInitialGuess(const double *res, const double *vars);
   void CalcEMStep();
   void CalcAIStep();
   void BackupVars();
@@ -113,4 +112,4 @@ class MultiLMMRML {
 };
 }  // namespace snplib
 
-#endif  //_SNPLIB_SRC_MULTI_LMM_H_
+#endif  // SNPLIB_SRC_MULTI_LMM_H_

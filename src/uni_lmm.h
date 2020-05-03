@@ -1,5 +1,5 @@
-#ifndef _SNPLIB_SRC_UNI_LMM_H_
-#define _SNPLIB_SRC_UNI_LMM_H_
+#ifndef SNPLIB_SRC_UNI_LMM_H_
+#define SNPLIB_SRC_UNI_LMM_H_
 
 #include <algorithm>
 #include <array>
@@ -54,4 +54,5 @@ class UniLMM {
   const std::array<double, 2> &GetVars() const { return vars_; }
 };
 }  // namespace snplib
-#endif  //_SNPLIB_SRC_UNI_LMM_H_
+
+#endif  // SNPLIB_SRC_UNI_LMM_H_

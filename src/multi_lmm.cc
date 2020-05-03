@@ -1,7 +1,18 @@
 #include "multi_lmm.h"
 
+namespace {
+void VectorizeTraits(const double *traits, size_t num_dims, size_t num_samples,
+                     double *vector_traits) {
+  for (size_t i = 0; i < num_dims; i++) {
+    for (size_t j = 0; j < num_samples; j++) {
+      vector_traits[j * num_dims + i] = traits[i * num_samples + j];
+    }
+  }
+}
+}  // namespace
+
 namespace snplib {
-void MultiLMMREML::FillQ() {
+void MultiLMM_REML::FillQ() {
   std::fill(Q, Q + num_dims_ * num_dims_ * num_covariates_ * num_samples_, 0.0);
   for (size_t i = 0; i < num_covariates_; ++i) {
     auto *tmp_c = covariates_ + i * num_samples_;
@@ -14,16 +25,9 @@ void MultiLMMREML::FillQ() {
     }
   }
 }
-void MultiLMMREML::VectorizeTraits(const double *traits) {
-  for (size_t i = 0; i < num_dims_; i++) {
-    for (size_t j = 0; j < num_samples_; j++) {
-      vector_traits_[j * num_dims_ + i] = traits[i * num_samples_ + j];
-    }
-  }
-}
-MultiLMMREML::MultiLMMREML(const double *lambda, const double *covariates,
-                           size_t num_samples, size_t num_covariates,
-                           size_t num_dims)
+MultiLMM_REML::MultiLMM_REML(const double *lambda, const double *covariates,
+                             size_t num_samples, size_t num_covariates,
+                             size_t num_dims)
     : num_samples_(num_samples),
       num_covariates_(num_covariates),
       num_dims_(num_dims),
@@ -66,7 +70,7 @@ MultiLMMREML::MultiLMMREML(const double *lambda, const double *covariates,
   step_ = new double[num_para_dims_];
   hessian_ = new double[num_para_dims_ * num_para_dims_];
 }
-MultiLMMREML::~MultiLMMREML() noexcept {
+MultiLMM_REML::~MultiLMM_REML() noexcept {
   delete[] vector_traits_;
   delete[] Le;
   delete[] Lg;
@@ -87,7 +91,7 @@ MultiLMMREML::~MultiLMMREML() noexcept {
   delete[] step_;
   delete[] hessian_;
 }
-double MultiLMMREML::CalcLikelihood() {
+double MultiLMM_REML::CalcLikelihood() {
   auto *v = vars_;
   LAPACKE_dtpttr(LAPACK_COL_MAJOR, 'L', p, v, Le, p);
   std::fill(Ve, Ve + num_dims_ * num_dims_, 0.0);
@@ -150,7 +154,7 @@ double MultiLMMREML::CalcLikelihood() {
   }
   return f / 2.0;
 }
-void MultiLMMREML::UpdateGradients() {
+void MultiLMM_REML::UpdateGradients() {
   std::fill(gradients_, gradients_ + num_dims_ * (num_dims_ + 1), 0.0);
   std::fill(Ht, Ht + num_dims_ * (num_dims_ + 1) * num_dims_ * num_samples_,
             0.0);
@@ -224,7 +228,7 @@ void MultiLMMREML::UpdateGradients() {
     }
   }
 }
-void MultiLMMREML::UpdateHessian() {
+void MultiLMM_REML::UpdateHessian() {
   cblas_dgemm(CblasColMajor, CblasTrans, CblasNoTrans, np, d, mp, 1.0, Q, mp,
               Ht, mp, 0.0, QHt, np);
   for (size_t l = 0; l < num_samples_; l++) {
@@ -238,14 +242,15 @@ void MultiLMMREML::UpdateHessian() {
   cblas_dsyrk(CblasColMajor, CblasLower, CblasTrans, d, np, -1.0, QHt, np, 1.0,
               hessian_, d);
 }
-double MultiLMMREML::CalcLineGradient() {
+double MultiLMM_REML::CalcLineGradient() {
   double result = 0.0;
   for (size_t i = 0; i < num_para_dims_; ++i) {
     result += gradients_[i] * step_[i];
   }
   return result;
 }
-void MultiLMMREML::CalcInitialGuess(double *traits, double *res, double *vars) {
+void MultiLMM_REML::CalcInitialGuess(const double *traits, const double *res,
+                                     const double *vars) {
   double c = 1.0 / (num_samples_ - num_covariates_);
   cblas_dsyrk(CblasColMajor, CblasLower, CblasTrans, p, m, c, res, m, 0.0, Le,
               p);
@@ -258,13 +263,13 @@ void MultiLMMREML::CalcInitialGuess(double *traits, double *res, double *vars) {
       Vg[i * num_dims_ + j] = a * vars[2 * i + 1] * vars[2 * j + 1];
     }
   }
-  VectorizeTraits(traits);
+  VectorizeTraits(traits, num_dims_, num_samples_, vector_traits_);
   LAPACKE_dpotrf(LAPACK_COL_MAJOR, 'L', p, Ve, p);
   LAPACKE_dtrttp(LAPACK_COL_MAJOR, 'L', p, Ve, p, vars_);
   LAPACKE_dpotrf(LAPACK_COL_MAJOR, 'L', p, Vg, p);
   LAPACKE_dtrttp(LAPACK_COL_MAJOR, 'L', p, Vg, p, vars_ + d / 2);
 }
-void MultiLMMREML::CalcEMStep() {
+void MultiLMM_REML::CalcEMStep() {
   double c = 1.0 / num_samples_;
   std::fill(Le, Le + num_dims_ * num_dims_, 0.0);
   std::fill(Lg, Lg + num_dims_ * num_dims_, 0.0);
@@ -308,21 +313,21 @@ void MultiLMMREML::CalcEMStep() {
   LAPACKE_dpotrf(LAPACK_COL_MAJOR, 'L', p, Vg, p);
   LAPACKE_dtrttp(LAPACK_COL_MAJOR, 'L', p, Vg, p, vars_ + d / 2);
 }
-void MultiLMMREML::CalcAIStep() {
+void MultiLMM_REML::CalcAIStep() {
   for (size_t i = 0; i < num_para_dims_; i++) {
     step_[i] = -gradients_[i];
   }
   LAPACKE_dposv(LAPACK_COL_MAJOR, 'L', d, 1, hessian_, d, step_, d);
 }
-void MultiLMMREML::BackupVars() {
+void MultiLMM_REML::BackupVars() {
   std::copy(vars_, vars_ + num_para_dims_, old_vars_);
 }
-void MultiLMMREML::UpdateVars(double a) {
+void MultiLMM_REML::UpdateVars(double a) {
   for (size_t i = 0; i < num_para_dims_; ++i) {
     vars_[i] = old_vars_[i] + a * step_[i];
   }
 }
-void MultiLMMREML::CalcRes(double *Res) {
+void MultiLMM_REML::CalcRes(double *Res) {
   for (size_t l = 0; l < num_samples_; ++l) {
     auto eigen = lambda_[l];
     auto *tmp_H = H + l * num_dims_ * num_dims_;
@@ -338,7 +343,7 @@ void MultiLMMREML::CalcRes(double *Res) {
                 tmp_r, m);
   }
 }
-void MultiLMMREML::GetSigmaE(double *sigma_e) {
+void MultiLMM_REML::GetSigmaE(double *sigma_e) {
   for (size_t i = 0; i < num_dims_; i++) {
     for (size_t j = i; j < num_dims_; j++) {
       sigma_e[i * num_dims_ + j] = Ve[i * num_dims_ + j];
@@ -346,7 +351,7 @@ void MultiLMMREML::GetSigmaE(double *sigma_e) {
     }
   }
 }
-void MultiLMMREML::GetSigmaG(double *sigma_g) {
+void MultiLMM_REML::GetSigmaG(double *sigma_g) {
   for (size_t i = 0; i < num_dims_; i++) {
     for (size_t j = i; j < num_dims_; j++) {
       sigma_g[i * num_dims_ + j] = Vg[i * num_dims_ + j];
@@ -354,15 +359,11 @@ void MultiLMMREML::GetSigmaG(double *sigma_g) {
     }
   }
 }
-void MultiLMMRML::VectorizeTraits(const double *traits) {
-  for (size_t i = 0; i < num_dims_; i++) {
-    for (size_t j = 0; j < num_samples_; j++) {
-      vector_traits_[j * num_dims_ + i] = traits[i * num_samples_ + j];
-    }
-  }
-}
-MultiLMMRML::MultiLMMRML(const double *lambda, size_t num_samples,
-                         size_t num_covariates, size_t num_dims)
+
+// Class MultiLMM_RML
+
+MultiLMM_RML::MultiLMM_RML(const double *lambda, size_t num_samples,
+                           size_t num_covariates, size_t num_dims)
     : num_samples_(num_samples),
       num_covariates_(num_covariates),
       num_para_dims_(num_dims * (num_dims + 1)),
@@ -392,7 +393,7 @@ MultiLMMRML::MultiLMMRML(const double *lambda, size_t num_samples,
   step_ = new double[num_para_dims_];
   hessian_ = new double[num_para_dims_ * num_para_dims_];
 }
-MultiLMMRML::~MultiLMMRML() noexcept {
+MultiLMM_RML::~MultiLMM_RML() noexcept {
   delete[] vector_traits_;
   delete[] Le;
   delete[] Lg;
@@ -408,7 +409,7 @@ MultiLMMRML::~MultiLMMRML() noexcept {
   delete[] step_;
   delete[] hessian_;
 }
-double MultiLMMRML::CalcLikelihood() {
+double MultiLMM_RML::CalcLikelihood() {
   auto *v = vars_;
   LAPACKE_dtpttr(LAPACK_COL_MAJOR, 'L', p, v, Le, p);
   std::fill(Ve, Ve + num_dims_ * num_dims_, 0.0);
@@ -453,7 +454,7 @@ double MultiLMMRML::CalcLikelihood() {
   }
   return f / 2.0;
 }
-void MultiLMMRML::UpdateGradients() {
+void MultiLMM_RML::UpdateGradients() {
   std::fill(gradients_, gradients_ + num_dims_ * (num_dims_ + 1), 0.0);
   std::fill(Ht, Ht + num_dims_ * (num_dims_ + 1) * num_dims_ * num_samples_,
             0.0);
@@ -524,7 +525,7 @@ void MultiLMMRML::UpdateGradients() {
     }
   }
 }
-void MultiLMMRML::UpdateHessian() {
+void MultiLMM_RML::UpdateHessian() {
   for (size_t l = 0; l < num_samples_; l++) {
     auto *tmp_H = H + l * num_dims_ * num_dims_;
     auto *tmp_ht = Ht + l * num_dims_;
@@ -534,14 +535,14 @@ void MultiLMMRML::UpdateHessian() {
   cblas_dsyrk(CblasColMajor, CblasLower, CblasTrans, d, mp, 1.0, Ht, mp, 0.0,
               hessian_, d);
 }
-double MultiLMMRML::CalcLineGradient() {
+double MultiLMM_RML::CalcLineGradient() {
   double result = 0.0;
   for (size_t i = 0; i < num_para_dims_; ++i) {
     result += gradients_[i] * step_[i];
   }
   return result;
 }
-void MultiLMMRML::CalcInitialGuess(double *res, double *vars) {
+void MultiLMM_RML::CalcInitialGuess(const double *res, const double *vars) {
   double c = 1.0 / (num_samples_ - num_covariates_);
   cblas_dsyrk(CblasColMajor, CblasLower, CblasTrans, p, m, c, res, m, 0.0, Le,
               p);
@@ -554,13 +555,13 @@ void MultiLMMRML::CalcInitialGuess(double *res, double *vars) {
       Vg[i * num_dims_ + j] = a * vars[2 * i + 1] * vars[2 * j + 1];
     }
   }
-  VectorizeTraits(res);
+  VectorizeTraits(res, num_dims_, num_samples_, vector_traits_);
   LAPACKE_dpotrf(LAPACK_COL_MAJOR, 'L', p, Ve, p);
   LAPACKE_dtrttp(LAPACK_COL_MAJOR, 'L', p, Ve, p, vars_);
   LAPACKE_dpotrf(LAPACK_COL_MAJOR, 'L', p, Vg, p);
   LAPACKE_dtrttp(LAPACK_COL_MAJOR, 'L', p, Vg, p, vars_ + d / 2);
 }
-void MultiLMMRML::CalcEMStep() {
+void MultiLMM_RML::CalcEMStep() {
   double c = 1.0 / num_samples_;
   std::fill(Le, Le + num_dims_ * num_dims_, 0.0);
   std::fill(Lg, Lg + num_dims_ * num_dims_, 0.0);
@@ -601,21 +602,21 @@ void MultiLMMRML::CalcEMStep() {
   LAPACKE_dpotrf(LAPACK_COL_MAJOR, 'L', p, Vg, p);
   LAPACKE_dtrttp(LAPACK_COL_MAJOR, 'L', p, Vg, p, vars_ + d / 2);
 }
-void MultiLMMRML::CalcAIStep() {
+void MultiLMM_RML::CalcAIStep() {
   for (size_t i = 0; i < num_para_dims_; i++) {
     step_[i] = -gradients_[i];
   }
   LAPACKE_dposv(LAPACK_COL_MAJOR, 'L', d, 1, hessian_, d, step_, d);
 }
-void MultiLMMRML::BackupVars() {
+void MultiLMM_RML::BackupVars() {
   std::copy(vars_, vars_ + num_para_dims_, old_vars_);
 }
-void MultiLMMRML::UpdateVars(double a) {
+void MultiLMM_RML::UpdateVars(double a) {
   for (size_t i = 0; i < num_para_dims_; ++i) {
     vars_[i] = old_vars_[i] + a * step_[i];
   }
 }
-void MultiLMMRML::GetSigmaE(double *sigma_e) {
+void MultiLMM_RML::GetSigmaE(double *sigma_e) {
   for (size_t i = 0; i < num_dims_; i++) {
     for (size_t j = i; j < num_dims_; j++) {
       sigma_e[i * num_dims_ + j] = Ve[i * num_dims_ + j];
@@ -623,7 +624,7 @@ void MultiLMMRML::GetSigmaE(double *sigma_e) {
     }
   }
 }
-void MultiLMMRML::GetSigmaG(double *sigma_g) {
+void MultiLMM_RML::GetSigmaG(double *sigma_g) {
   for (size_t i = 0; i < num_dims_; i++) {
     for (size_t j = i; j < num_dims_; j++) {
       sigma_g[i * num_dims_ + j] = Vg[i * num_dims_ + j];
