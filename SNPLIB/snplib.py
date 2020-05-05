@@ -64,8 +64,7 @@ class SNPLIB:
         num_bytes = math.ceil(self.nSamples / 4.0)
         GENO = np.fromfile(filename, dtype=np.uint8, count=-1)
         GENO = GENO[3:]
-        GENO = np.reshape(GENO, (num_bytes, - 1))
-        self.GENO = GENO.astype(dtype=np.uint8, order='F')
+        self.GENO = np.reshape(GENO, (num_bytes, - 1), order='F')
 
     # Statistics
     def CalcAlleleFrequencies(self):
@@ -116,7 +115,7 @@ class SNPLIB:
     # Ancestry Estimation
 
     def CalcPCAScores(self, nComponents):
-        grm = self.CalcGRMMatrix()
+        grm, _ = self.CalcGRMMatrix()
         w, V = npl.eig(grm)
         ind = np.argsort(-w)
         return V[:, ind[:nComponents]]

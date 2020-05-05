@@ -52,23 +52,18 @@ void UpdateConnect(const uint64_t *src_geno64, const uint64_t *src_mask64,
     connect[i] += result;
   }
 }
-}  // namespace
-
-namespace snplib {
 void CalcIBSMatrixThread(const uint8_t *geno, size_t num_samples,
                          size_t num_snps, uint64_t *matrix) {
+  snplib::SNP snp(geno, num_samples);
   auto num_blocks = num_snps / 1024u;
   auto num_snps_left = num_snps % 1024u;
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
-  auto *geno64 = new uint64_t[num_samples];
-  auto *mask64 = new uint64_t[num_samples];
+  auto *geno64 = new uint64_t[32 * num_samples];
+  auto *mask64 = new uint64_t[32 * num_samples];
   std::fill(matrix, matrix + num_samples * num_samples, 0ull);
   for (size_t i = 0; i < num_blocks; ++i) {
     for (size_t j = 0; j < 32; ++j) {
-      TransposeGeno(geno, num_samples, 32, j, geno64);
-      geno += 32 * num_bytes;
+      snp.TransposeGeno(32, j, geno64);
+      snp += 32;
     }
     Mask(geno64, num_samples, mask64);
     UpdateMatrix(geno64, mask64, num_samples, matrix);
@@ -77,12 +72,12 @@ void CalcIBSMatrixThread(const uint8_t *geno, size_t num_samples,
     num_blocks = num_snps_left / 32;
     std::fill(geno64, geno64 + 32 * num_samples, kMask);
     for (size_t j = 0; j < num_blocks; ++j) {
-      TransposeGeno(geno, num_samples, 32, j, geno64);
-      geno += 32 * num_bytes;
+      snp.TransposeGeno(32, j, geno64);
+      snp += 32;
     }
     num_snps_left %= 32;
-    if (num_snps_left > 0) {
-      TransposeGeno(geno, num_samples, num_snps_left, num_blocks, geno64);
+    if (num_snps_left > 0u) {
+      snp.TransposeGeno(num_snps_left, num_blocks, geno64);
     }
     Mask(geno64, num_samples, mask64);
     UpdateMatrix(geno64, mask64, num_samples, matrix);
@@ -90,10 +85,61 @@ void CalcIBSMatrixThread(const uint8_t *geno, size_t num_samples,
   delete[] geno64;
   delete[] mask64;
 }
+void CalcIBSConnectThread(const uint8_t *src_geno, size_t num_src_samples,
+                          const uint8_t *dest_geno, size_t num_dest_samples,
+                          size_t num_snps, uint64_t *connection) {
+  snplib::SNP src_snp(src_geno, num_src_samples);
+  snplib::SNP dest_snp(dest_geno, num_dest_samples);
+  auto num_blocks = num_snps / 1024u;
+  auto num_snps_left = num_snps % 1024u;
+  auto *src_geno64 = new uint64_t[32 * num_src_samples];
+  auto *src_mask64 = new uint64_t[32 * num_src_samples];
+  auto *dest_geno64 = new uint64_t[32 * num_dest_samples];
+  auto *dest_mask64 = new uint64_t[32 * num_dest_samples];
+  std::fill(connection, connection + num_dest_samples, 0ull);
+  for (size_t i = 0; i < num_blocks; ++i) {
+    for (size_t j = 0; j < 32; ++j) {
+      src_snp.TransposeGeno(32, j, src_geno64);
+      dest_snp.TransposeGeno(32, j, dest_geno64);
+      src_snp += 32;
+      dest_snp += 32;
+    }
+    Mask(src_geno64, num_src_samples, src_mask64);
+    Mask(dest_geno64, num_dest_samples, dest_mask64);
+    UpdateConnect(src_geno64, src_mask64, dest_geno64, dest_mask64,
+                  num_src_samples, num_dest_samples, connection);
+  }
+  if (num_snps_left > 0u) {
+    std::fill(src_geno64, src_geno64 + 32 * num_src_samples, kMask);
+    std::fill(dest_geno64, dest_geno64 + 32 * num_dest_samples, kMask);
+    num_blocks = num_snps_left / 32;
+    for (size_t j = 0; j < num_blocks; ++j) {
+      src_snp.TransposeGeno(32, j, src_geno64);
+      dest_snp.TransposeGeno(32, j, dest_geno64);
+      src_snp += 32;
+      dest_snp += 32;
+    }
+    num_snps_left %= 32;
+    if (num_snps_left > 0u) {
+      src_snp.TransposeGeno(num_snps_left, num_blocks, src_geno64);
+      dest_snp.TransposeGeno(num_snps_left, num_blocks, dest_geno64);
+    }
+    Mask(src_geno64, num_src_samples, src_mask64);
+    Mask(dest_geno64, num_dest_samples, dest_mask64);
+    UpdateConnect(src_geno64, src_mask64, dest_geno64, dest_mask64,
+                  num_src_samples, num_dest_samples, connection);
+  }
+  delete[] src_geno64;
+  delete[] src_mask64;
+  delete[] dest_geno64;
+  delete[] dest_mask64;
+}
+}  // namespace
 
+namespace snplib {
 void CalcIBSMatrix(const uint8_t *geno, size_t num_samples, size_t num_snps,
                    double *matrix, size_t num_threads) {
-  std::vector<std::thread> workers;
+  std::vector<std::thread> workers(num_threads);
   auto *matrices = new uint64_t[num_samples * num_samples * num_threads];
   auto num_snps_job = num_snps / num_threads + 1;
   auto num_snps_left = num_snps % num_threads;
@@ -101,14 +147,16 @@ void CalcIBSMatrix(const uint8_t *geno, size_t num_samples, size_t num_snps,
   auto num_samples_left = num_samples % 4;
   auto num_bytes = num_full_bytes + (num_samples_left > 0 ? 1 : 0);
   for (size_t i = 0; i < num_snps_left; ++i) {
-    workers.emplace_back(CalcIBSMatrixThread, geno, num_samples, num_snps_job,
-                         matrices + i * num_samples * num_samples);
+    workers[i] =
+        std::thread(CalcIBSMatrixThread, geno, num_samples, num_snps_job,
+                    matrices + i * num_samples * num_samples);
     geno += num_snps_job * num_bytes;
   }
   --num_snps_job;
   for (size_t i = num_snps_left; i < num_threads; ++i) {
-    workers.emplace_back(CalcIBSMatrixThread, geno, num_samples, num_snps_job,
-                         matrices + i * num_samples * num_samples);
+    workers[i] =
+        std::thread(CalcIBSMatrixThread, geno, num_samples, num_snps_job,
+                    matrices + i * num_samples * num_samples);
     geno += num_snps_job * num_bytes;
   }
   for (auto &&iter : workers) {
@@ -132,69 +180,11 @@ void CalcIBSMatrix(const uint8_t *geno, size_t num_samples, size_t num_snps,
   }
   delete[] matrices;
 }
-
-void CalcIBSConnectionThread(const uint8_t *src_geno, size_t num_src_samples,
-                             uint8_t *dest_geno, size_t num_dest_samples,
-                             size_t num_snps, uint64_t *connection) {
-  auto num_blocks = num_snps / 1024u;
-  auto num_snps_left = num_snps % 1024u;
-  auto num_src_full_bytes = num_src_samples / 4;
-  auto num_src_samples_left = num_src_samples % 4;
-  auto num_src_bytes = num_src_full_bytes + (num_src_samples_left > 0 ? 1 : 0);
-  auto num_dest_full_bytes = num_dest_samples / 4;
-  auto num_dest_samples_left = num_dest_samples % 4;
-  auto num_dest_bytes =
-      num_dest_full_bytes + (num_dest_samples_left > 0 ? 1 : 0);
-  auto *src_geno64 = new uint64_t[32 * num_src_samples];
-  auto *src_mask64 = new uint64_t[32 * num_src_samples];
-  auto *dest_geno64 = new uint64_t[32 * num_dest_samples];
-  auto *dest_mask64 = new uint64_t[32 * num_dest_samples];
-  std::fill(connection, connection + num_dest_samples, 0ull);
-  for (size_t i = 0; i < num_blocks; ++i) {
-    for (size_t j = 0; j < 32; ++j) {
-      TransposeGeno(src_geno, num_src_samples, 32, j, src_geno64);
-      TransposeGeno(dest_geno, num_dest_samples, 32, j, dest_geno64);
-      src_geno += 32 * num_src_bytes;
-      dest_geno += 32 * num_dest_bytes;
-    }
-    Mask(src_geno64, num_src_samples, src_mask64);
-    Mask(dest_geno64, num_dest_samples, dest_mask64);
-    UpdateConnect(src_geno64, src_mask64, dest_geno64, dest_mask64,
-                  num_src_samples, num_dest_samples, connection);
-  }
-  if (num_snps_left > 0u) {
-    std::fill(src_geno64, src_geno64 + 32 * num_src_samples, kMask);
-    std::fill(dest_geno64, dest_geno64 + 32 * num_dest_samples, kMask);
-    num_blocks = num_snps_left / 32;
-    for (size_t j = 0; j < num_blocks; ++j) {
-      TransposeGeno(src_geno, num_src_samples, 32, j, src_geno64);
-      TransposeGeno(dest_geno, num_dest_samples, 32, j, dest_geno64);
-      src_geno += 32 * num_src_bytes;
-      dest_geno += 32 * num_dest_bytes;
-    }
-    num_snps_left %= 32;
-    if (num_snps_left > 0u) {
-      TransposeGeno(src_geno, num_src_samples, num_snps_left, num_blocks,
-                    src_geno64);
-      TransposeGeno(dest_geno, num_dest_samples, num_snps_left, num_blocks,
-                    dest_geno64);
-    }
-    Mask(src_geno64, num_src_samples, src_mask64);
-    Mask(dest_geno64, num_dest_samples, dest_mask64);
-    UpdateConnect(src_geno64, src_mask64, dest_geno64, dest_mask64,
-                  num_src_samples, num_dest_samples, connection);
-  }
-  delete[] src_geno64;
-  delete[] src_mask64;
-  delete[] dest_geno64;
-  delete[] dest_mask64;
-}
-
 void CalcIBSConnection(const uint8_t *src_geno, size_t num_src_samples,
-                       uint8_t *dest_geno, size_t num_dest_samples,
+                       const uint8_t *dest_geno, size_t num_dest_samples,
                        size_t num_snps, double *connection,
                        size_t num_threads) {
-  std::vector<std::thread> workers;
+  std::vector<std::thread> workers(num_threads);
   auto *connects = new uint64_t[num_dest_samples * num_threads];
   auto num_src_full_bytes = num_src_samples / 4;
   auto num_src_samples_left = num_src_samples % 4;
@@ -206,17 +196,17 @@ void CalcIBSConnection(const uint8_t *src_geno, size_t num_src_samples,
   auto num_snps_job = num_snps / num_threads + 1;
   auto num_snps_left = num_snps % num_threads;
   for (size_t i = 0; i < num_snps_left; ++i) {
-    workers.emplace_back(CalcIBSConnectionThread, src_geno, num_src_samples,
-                         dest_geno, num_dest_samples, num_snps_job,
-                         connects + i * num_dest_samples);
+    workers[i] = std::thread(CalcIBSConnectThread, src_geno, num_src_samples,
+                             dest_geno, num_dest_samples, num_snps_job,
+                             connects + i * num_dest_samples);
     src_geno += num_snps_job * num_src_bytes;
     dest_geno += num_snps_job * num_dest_bytes;
   }
   --num_snps_job;
   for (size_t i = num_snps_left; i < num_threads; ++i) {
-    workers.emplace_back(CalcIBSConnectionThread, src_geno, num_src_samples,
-                         dest_geno, num_dest_samples, num_snps_job,
-                         connects + i * num_dest_samples);
+    workers[i] = std::thread(CalcIBSConnectThread, src_geno, num_src_samples,
+                             dest_geno, num_dest_samples, num_snps_job,
+                             connects + i * num_dest_samples);
     src_geno += num_snps_job * num_src_bytes;
     dest_geno += num_snps_job * num_dest_bytes;
   }

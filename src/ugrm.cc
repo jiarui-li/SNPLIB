@@ -46,23 +46,18 @@ void UpdateMatrix(const uint64_t *geno64, const uint64_t *mask64,
     }
   }
 }
-}  // namespace
-
-namespace snplib {
 void CalcUGRMMatrixThread(const uint8_t *geno, size_t num_samples,
                           size_t num_snps, int64_t *matrix) {
+  snplib::SNP snp(geno, num_samples);
   auto num_blocks = num_snps / 1024u;
   auto num_snps_left = num_snps % 1024u;
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
   auto *geno64 = new uint64_t[32 * num_samples];
   auto *mask64 = new uint64_t[32 * num_samples];
   std::fill(matrix, matrix + num_samples * num_samples, 0ull);
   for (size_t i = 0; i < num_blocks; ++i) {
     for (size_t j = 0; j < 32; ++j) {
-      TransposeGeno(geno, num_samples, 32, j, geno64);
-      geno += 32 * num_bytes;
+      snp.TransposeGeno(32, j, geno64);
+      snp += 32;
     }
     Mask(geno64, num_samples, mask64);
     UpdateMatrix(geno64, mask64, num_samples, matrix);
@@ -71,12 +66,12 @@ void CalcUGRMMatrixThread(const uint8_t *geno, size_t num_samples,
     num_blocks = num_snps_left / 32;
     std::fill(geno64, geno64 + 32 * num_samples, kMask1);
     for (size_t j = 0; j < num_blocks; ++j) {
-      TransposeGeno(geno, num_samples, 32, j, geno64);
-      geno += 32 * num_bytes;
+      snp.TransposeGeno(32, j, geno64);
+      snp += 32;
     }
     num_snps_left %= 32;
     if (num_snps_left > 0u) {
-      TransposeGeno(geno, num_samples, num_snps_left, num_blocks, geno64);
+      snp.TransposeGeno(num_snps_left, num_blocks, geno64);
     }
     Mask(geno64, num_samples, mask64);
     UpdateMatrix(geno64, mask64, num_samples, matrix);
@@ -84,9 +79,12 @@ void CalcUGRMMatrixThread(const uint8_t *geno, size_t num_samples,
   delete[] geno64;
   delete[] mask64;
 }
+}  // namespace
+
+namespace snplib {
 void CalcUGRMMatrix(const uint8_t *geno, size_t num_samples, size_t num_snps,
                     double *matrix, size_t num_threads) {
-  std::vector<std::thread> workers;
+  std::vector<std::thread> workers(num_threads);
   auto *matrices = new int64_t[num_samples * num_samples * num_threads];
   auto num_snps_job = num_snps / num_threads + 1;
   auto num_snps_left = num_snps % num_threads;
@@ -94,15 +92,16 @@ void CalcUGRMMatrix(const uint8_t *geno, size_t num_samples, size_t num_snps,
   auto num_samples_left = num_samples % 4;
   auto num_bytes = num_full_bytes + (num_samples_left > 0 ? 1 : 0);
   for (size_t i = 0; i < num_snps_left; ++i) {
-    workers.emplace_back(CalcUGRMMatrixThread, geno, num_samples, num_snps_job,
-                         matrices + i * num_samples * num_samples);
+    workers[i] =
+        std::thread(CalcUGRMMatrixThread, geno, num_samples, num_snps_job,
+                    matrices + i * num_samples * num_samples);
     geno += num_snps_job * num_bytes;
   }
   --num_snps_job;
   for (size_t i = num_snps_left; i < num_threads; ++i) {
-    workers.emplace_back(CalcUGRMMatrixThread, geno, num_samples, num_snps_job,
-                         matrices + i * num_samples * num_samples);
-    geno += num_snps_job * num_bytes;
+    workers[i] =
+        std::thread(CalcUGRMMatrixThread, geno, num_samples, num_snps_job,
+                    matrices + i * num_samples * num_samples);
     geno += num_snps_job * num_bytes;
   }
   for (auto &&iter : workers) {

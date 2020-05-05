@@ -10,9 +10,7 @@ void CalcAdjustedGRMThread(const uint8_t *geno, size_t num_samples,
                            size_t num_snps, double *covariates,
                            size_t num_covariates, double *matrix,
                            double *gcta_diag) {
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
+  SNP snp(geno, num_samples);
   auto *geno_d = new double[num_samples];
   auto *mask_d = new double[num_samples];
   LogisticRegress<2> worker(num_samples, num_covariates);
@@ -20,8 +18,7 @@ void CalcAdjustedGRMThread(const uint8_t *geno, size_t num_samples,
   std::fill(matrix, matrix + num_samples * num_samples, 0.0);
   std::fill(gcta_diag, gcta_diag + num_samples, 0.0);
   for (size_t i = 0; i < num_snps; ++i) {
-    UnpackGeno(geno + i * num_bytes, num_samples, geno_table, mask_table,
-               geno_d, mask_d);
+    snp.UnpackGeno(geno_table, mask_table, geno_d, mask_d);
     worker.Estimate(covariates, geno_d, mask_d);
     auto *u = worker.GetU();
     auto *w = worker.GetW();
@@ -34,6 +31,7 @@ void CalcAdjustedGRMThread(const uint8_t *geno, size_t num_samples,
     for (size_t j = 0; j < num_samples; ++j) {
       gcta_diag[j] += (u[j] - 1.0) * geno_d[j] / w[j];
     }
+    snp += 1;
   }
   delete[] geno_d;
   delete[] mask_d;
@@ -93,9 +91,7 @@ void CalcAdjustedGRM(const uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcAdmixedGRMThread(const uint8_t *geno, size_t num_samples,
                           size_t num_snps, double *pop_af, double *pop,
                           size_t num_pops, double *matrix, double *gcta_diag) {
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
+  SNP snp(geno, num_samples);
   auto *geno_d = new double[num_samples];
   auto *mask_d = new double[num_samples];
   auto *u = new double[num_samples];
@@ -105,8 +101,7 @@ void CalcAdmixedGRMThread(const uint8_t *geno, size_t num_samples,
   std::fill(matrix, matrix + num_samples * num_samples, 0.0);
   std::fill(gcta_diag, gcta_diag + num_samples, 0.0);
   for (size_t i = 0; i < num_snps; ++i) {
-    UnpackGeno(geno + i * num_bytes, num_samples, geno_table, mask_table,
-               geno_d, mask_d);
+    snp.UnpackGeno(geno_table, mask_table, geno_d, mask_d);
     auto *af = pop_af + i * num_pops;
     cblas_dgemv(CblasColMajor, CblasNoTrans, m, d, 2.0, pop, m, af, 1, 0.0, u,
                 1);

@@ -186,7 +186,6 @@ array CalcIBSMatrix(geno_t genotype, size_t num_samples, size_t num_threads) {
   auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
   auto num_snps = static_cast<size_t>(geno_buf.shape[1]);
   array matrix(std::array<size_t, 2>{num_samples, num_samples});
-  array gcta_diag(num_samples);
   auto matrix_buf = matrix.request();
   auto *matrix_ptr = reinterpret_cast<double *>(matrix_buf.ptr);
   snplib::CalcIBSMatrix(geno_ptr, num_samples, num_snps, matrix_ptr,

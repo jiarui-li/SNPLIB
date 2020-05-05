@@ -8,8 +8,8 @@
 
 #include "line_search.h"
 #include "logistc_regression.h"
+#include "snp.h"
 #include "uni_lmm.h"
-#include "unpack_geno.h"
 
 namespace snplib {
 void CalcLinearRegressionGWAS(const uint8_t *geno, size_t num_samples,

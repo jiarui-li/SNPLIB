@@ -11,9 +11,6 @@ void CalcLinearRegressionThread(const uint8_t *geno, size_t num_samples,
                                 size_t num_snps, const double *covariates,
                                 size_t num_covariates, const double *trait,
                                 double *betas, double *stats) {
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
   auto *mask_d = new double[num_samples];
   auto *y = new double[num_samples];
   auto *cov = new double[num_samples * (num_covariates + 1)];
@@ -31,9 +28,10 @@ void CalcLinearRegressionThread(const uint8_t *geno, size_t num_samples,
   auto lwork = static_cast<int32_t>(w1 > w2 ? w1 : w2);
   auto *work = new double[lwork];
   while (local_ind < num_snps) {
+    SNP snp(geno, num_samples);
+    snp += local_ind;
+    snp.UnpackGeno(geno_table, mask_table, geno_d, mask_d);
     std::copy(covariates, covariates + num_samples * num_covariates, cov);
-    UnpackGeno(geno + local_ind * num_bytes, num_samples, geno_table,
-               mask_table, geno_d, mask_d);
     for (size_t i = 0; i < num_samples; ++i) {
       y[i] = trait[i] * mask_d[i];
     }
@@ -98,9 +96,6 @@ void CalcLogisticThread(const uint8_t *geno, size_t num_samples,
                         size_t num_snps, const double *covariates,
                         size_t num_covariates, const double *trait,
                         double *betas, double *stats) {
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
   auto *cov = new double[num_samples * (num_covariates + 1)];
   auto *geno_d = cov + num_samples * num_covariates;
   auto *mask_d = new double[num_samples];
@@ -109,8 +104,9 @@ void CalcLogisticThread(const uint8_t *geno, size_t num_samples,
   LogisticRegress<1> worker_reduce(num_samples, num_covariates);
   auto local_ind = ind++;
   while (local_ind < num_snps) {
-    UnpackGeno(geno + local_ind * num_bytes, num_samples, geno_table,
-               mask_table, geno_d, mask_d);
+    SNP snp(geno, num_samples);
+    snp += local_ind;
+    snp.UnpackGeno(geno_table, mask_table, geno_d, mask_d);
     worker_full.Estimate(cov, trait, mask_d);
     worker_reduce.Estimate(covariates, trait, mask_d);
     auto *beta = worker_full.GetBeta();
@@ -140,9 +136,6 @@ void CalcLogisticGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcCCAThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
                    const double *trait, size_t num_dims, double *betas,
                    double *stats) {
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
   auto *Y = new double[num_samples * num_dims];
   auto *geno_d = new double[num_samples];
   auto *mask_d = new double[num_samples];
@@ -161,14 +154,14 @@ void CalcCCAThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
   auto *iwork = new int32_t[liwork];
   auto local_ind = ind++;
   while (local_ind < num_snps) {
-    UnpackGeno(geno + local_ind * num_bytes, num_samples, geno_table,
-               mask_table, geno_d, mask_d);
+    SNP snp(geno, num_samples);
+    snp += local_ind;
+    snp.UnpackGeno(geno_table, mask_table, geno_d, mask_d);
     auto *tmp_b = betas + local_ind * num_dims;
     auto alpha = std::accumulate(mask_d, mask_d + num_samples, 0.0);
     for (size_t i = 0; i < num_dims; ++i) {
       auto *tmp_t = trait + i * num_samples;
       auto *tmp_y = Y + i * num_samples;
-
       for (size_t j = 0; j < num_samples; ++j) {
         tmp_y[j] = tmp_t[j] * mask_d[j];
       }
@@ -240,9 +233,6 @@ void CalcUniLMMThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
                       const double *covariates, size_t num_covariates,
                       const double *trait, double *betas, double *fstats,
                       double *dfs) {
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
   auto *cov = new double[(num_covariates + 1) * num_samples];
   std::copy(covariates, covariates + num_samples * num_covariates, cov);
   UniLMM worker(lambda, cov, num_samples, num_covariates + 1);
@@ -253,8 +243,9 @@ void CalcUniLMMThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
   auto *y = new double[num_samples];
   auto local_ind = ind++;
   while (local_ind < num_snps) {
-    UnpackGeno(geno + local_ind * num_bytes, num_samples, geno_table,
-               mask_table, y, mask_d);
+    SNP snp(geno, num_samples);
+    snp += local_ind;
+    snp.UnpackGeno(geno_table, mask_table, geno_d, mask_d);
     cblas_dgemv(CblasColMajor, CblasTrans, m, m, 1.0, V, m, y, 1, 0.0, geno_d,
                 1);
     for (size_t i = 0; i < num_samples; ++i) {

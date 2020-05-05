@@ -12,30 +12,24 @@ namespace snplib {
 void UnpackGRMGeno(const uint8_t *geno, const double *af, size_t num_samples,
                    size_t num_snps, double *geno_d) {
   std::array<double, 4> geno_table{0.0, 0.0, 0.0, 0.0};
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
+  SNP snp(geno, num_samples);
   for (size_t i = 0; i < num_snps; ++i) {
     auto mu = 2.0 * af[i];
     auto std = std::sqrt(2.0 * af[i] * (1.0 - af[i]));
     geno_table[0] = -mu / std;
     geno_table[2] = (1.0 - mu) / std;
     geno_table[3] = (2.0 - mu) / std;
-    auto *snp_geno = geno + i * num_bytes;
     auto *snp_geno_d = geno_d + i * num_samples;
-    UnpackGeno(snp_geno, num_samples, geno_table, snp_geno_d);
+    snp.UnpackGeno(geno_table, snp_geno_d);
   }
 }
 void UnpackUGeno(const uint8_t *geno, size_t num_samples, size_t num_snps,
                  double *geno_d) {
   const std::array<double, 4> geno_table{-1.0, 0.0, 0.0, 1.0};
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
+  SNP snp(geno, num_samples);
   for (size_t i = 0; i < num_snps; ++i) {
-    auto *snp_geno = geno + i * num_bytes;
     auto *snp_geno_d = geno_d + i * num_samples;
-    UnpackGeno(snp_geno, num_samples, geno_table, snp_geno_d);
+    snp.UnpackGeno(geno_table, snp_geno_d);
   }
 }
 void FlipGeno(uint8_t *geno, size_t num_samples, size_t num_snps,

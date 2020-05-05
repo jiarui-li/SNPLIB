@@ -1,4 +1,5 @@
 #include "grm.h"
+
 namespace {
 const uint64_t kMask = 0x1249124912491249ull;  // 0x1249=b0001001001001001
 void CalcSnpCorr(double af, std::array<double, 8> &table) {
@@ -88,29 +89,25 @@ void UpdateMatrix(const uint64_t *geno64, const uint64_t *mask64,
     }
   }
 }
-}  // namespace
-
-namespace snplib {
 void CalcGRMMatrixThread(const uint8_t *geno, const double *af,
                          size_t num_samples, size_t num_snps, double *matrix) {
+  snplib::SNP snp(geno, num_samples);
   auto num_blocks = num_snps / 20u;
   auto num_snps_left = num_snps % 20u;
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
   auto *geno64 = new uint64_t[num_samples];
   auto *mask64 = new uint64_t[num_samples];
   auto *lookup_table = new double[4 * 32768];
   std::fill(matrix, matrix + num_samples * num_samples, 0.0);
   for (size_t i = 0; i < num_blocks; ++i) {
-    TransposeGeno(geno, num_samples, 20, geno64);
+    snp.TransposeGeno(20, geno64);
     UpdateLookupTable(af, lookup_table);
     Mask(geno64, num_samples, mask64);
     UpdateMatrix(geno64, mask64, lookup_table, num_samples, matrix);
-    geno += 20 * num_bytes;
+    snp += 20;
+    af += 20;
   }
   if (num_snps_left > 0) {
-    TransposeGeno(geno, num_samples, num_snps_left, geno64);
+    snp.TransposeGeno(num_snps_left, geno64);
     UpdateLookupTable(af, num_snps_left, lookup_table);
     Mask(geno64, num_samples, mask64);
     UpdateMatrix(geno64, mask64, lookup_table, num_samples, matrix);
@@ -119,10 +116,31 @@ void CalcGRMMatrixThread(const uint8_t *geno, const double *af,
   delete[] mask64;
   delete[] lookup_table;
 }
+void CalcGCTAThread(const uint8_t *geno, const double *af, size_t num_samples,
+                    size_t num_snps, double *diagonal) {
+  snplib::SNP snp(geno, num_samples);
+  auto *geno_d = new double[num_samples];
+  std::fill(geno_d, geno_d + num_samples, 0.0);
+  std::fill(diagonal, diagonal + num_samples, 0.0);
+  std::array<double, 4> geno_table{0.0, 0.0, 0.0, 0.0};
+  for (size_t i = 0; i < num_snps; ++i) {
+    auto var = 2.0 * af[i] * (1.0 - af[i]);
+    geno_table[0] = 2.0 * af[i] / var;
+    geno_table[3] = (2.0 - 2.0 * af[i]) / var;
+    snp.UnpackGeno(geno_table, geno_d);
+    for (size_t j = 0; j < num_samples; ++j) {
+      diagonal[j] += geno_d[j];
+    }
+    snp += 1;
+  }
+  delete[] geno_d;
+}
+}  // namespace
 
+namespace snplib {
 void CalcGRMMatrix(const uint8_t *geno, const double *af, size_t num_samples,
-                   size_t num_snps, double *matrix, size_t num_threads) {
-  std::vector<std::thread> workers;
+                   size_t num_snps, double *grm, size_t num_threads) {
+  std::vector<std::thread> workers(num_threads);
   auto *matrices = new double[num_samples * num_samples * num_threads];
   auto num_snps_job = num_snps / num_threads + 1;
   auto num_snps_left = num_snps % num_threads;
@@ -130,66 +148,43 @@ void CalcGRMMatrix(const uint8_t *geno, const double *af, size_t num_samples,
   auto num_samples_left = num_samples % 4;
   auto num_bytes = num_full_bytes + (num_samples_left > 0 ? 1 : 0);
   for (size_t i = 0; i < num_snps_left; ++i) {
-    workers.emplace_back(CalcGRMMatrixThread, geno, af, num_samples,
-                         num_snps_job,
-                         matrices + i * num_samples * num_samples);
+    workers[i] =
+        std::thread(CalcGRMMatrixThread, geno, af, num_samples, num_snps_job,
+                    matrices + i * num_samples * num_samples);
     geno += num_snps_job * num_bytes;
     af += num_snps_job;
   }
   --num_snps_job;
   for (size_t i = num_snps_left; i < num_threads; ++i) {
-    workers.emplace_back(CalcGRMMatrixThread, geno, af, num_samples,
-                         num_snps_job,
-                         matrices + i * num_samples * num_samples);
+    workers[i] =
+        std::thread(CalcGRMMatrixThread, geno, af, num_samples, num_snps_job,
+                    matrices + i * num_samples * num_samples);
     geno += num_snps_job * num_bytes;
     af += num_snps_job;
   }
   for (auto &&iter : workers) {
     iter.join();
   }
-  std::fill(matrix, matrix + num_samples * num_samples, 0.0);
+  std::fill(grm, grm + num_samples * num_samples, 0.0);
   for (size_t k = 0; k < num_threads; ++k) {
     auto *tmp_m = matrices + k * num_samples * num_samples;
     for (size_t i = 0; i < num_samples; ++i) {
       for (size_t j = i; j < num_samples; ++j) {
-        matrix[i * num_samples + j] += tmp_m[i * num_samples + j];
+        grm[i * num_samples + j] += tmp_m[i * num_samples + j];
       }
     }
   }
   delete[] matrices;
   for (size_t i = 0; i < num_samples; ++i) {
     for (size_t j = i; j < num_samples; ++j) {
-      matrix[i * num_samples + j] /= num_snps;
-      matrix[j * num_samples + i] = matrix[i * num_samples + j];
+      grm[i * num_samples + j] /= num_snps;
+      grm[j * num_samples + i] = grm[i * num_samples + j];
     }
   }
-  delete[] matrices;
 }
-
-void CalcGCTAThread(const uint8_t *geno, const double *af, size_t num_samples,
-                    size_t num_snps, double *diagonal) {
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
-  auto *geno_d = new double[num_samples];
-  std::array<double, 4> geno_table{0.0, 0.0, 0.0, 0.0};
-  std::fill(geno_d, geno_d + num_samples, 0.0);
-  std::fill(diagonal, diagonal + num_samples, 0.0);
-  for (size_t i = 0; i < num_snps; ++i) {
-    auto var = 2.0 * af[i] * (1.0 - af[i]);
-    geno_table[0] = 2.0 * af[i] / var;
-    geno_table[3] = (2.0 - 2.0 * af[i]) / var;
-    UnpackGeno(geno + i * num_bytes, num_samples, geno_table, geno_d);
-    for (size_t j = 0; j < num_samples; ++j) {
-      diagonal[j] += geno_d[j];
-    }
-  }
-  delete[] geno_d;
-}
-
 void CalcGCTADiagonal(const uint8_t *geno, const double *af, size_t num_samples,
                       size_t num_snps, double *diagonal, size_t num_threads) {
-  std::vector<std::thread> workers;
+  std::vector<std::thread> workers(num_threads);
   auto *diagonals = new double[num_samples * num_threads];
   auto num_snps_job = num_snps / num_threads + 1;
   auto num_snps_left = num_snps % num_threads;
@@ -197,15 +192,15 @@ void CalcGCTADiagonal(const uint8_t *geno, const double *af, size_t num_samples,
   auto num_samples_left = num_samples % 4;
   auto num_bytes = num_full_bytes + (num_samples_left > 0 ? 1 : 0);
   for (size_t i = 0; i < num_snps_left; ++i) {
-    workers.emplace_back(CalcGCTAThread, geno, af, num_samples, num_snps_job,
-                         diagonals + i * num_samples);
+    workers[i] = std::thread(CalcGCTAThread, geno, af, num_samples,
+                             num_snps_job, diagonals + i * num_samples);
     geno += num_snps_job * num_bytes;
     af += num_snps_job;
   }
   --num_snps_job;
   for (size_t i = num_snps_left; i < num_threads; ++i) {
-    workers.emplace_back(CalcGCTAThread, geno, af, num_samples, num_snps_job,
-                         diagonals + i * num_samples);
+    workers[i] = std::thread(CalcGCTAThread, geno, af, num_samples,
+                             num_snps_job, diagonals + i * num_samples);
     geno += num_snps_job * num_bytes;
     af += num_snps_job;
   }
@@ -223,6 +218,5 @@ void CalcGCTADiagonal(const uint8_t *geno, const double *af, size_t num_samples,
   for (size_t i = 0; i < num_samples; ++i) {
     diagonal[i] /= num_snps;
   }
-  delete[] diagonals;
 }
 }  // namespace snplib

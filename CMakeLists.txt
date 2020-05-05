@@ -35,6 +35,6 @@ if(USE_OPENBLAS)
     include_directories(${OPENBLAS_ROOT}/include)
 endif()
 
-add_library(_SNPLIB MODULE src/python_wrapper.cc src/adjusted_grm.cc src/data_manage.cc src/genetic_variances.cc src/grm.cc src/gwas.cc src/ibs.cc src/king.cc src/multi_lmm.cc src/simulations.cc src/statistics.cc src/transpose_geno.cc src/ugrm.cc src/uni_lmm.cc)
+add_library(_SNPLIB MODULE src/python_wrapper.cc src/snp.cc src/grm.cc src/gwas.cc src/ibs.cc src/ugrm.cc src/king.cc src/adjusted_grm.cc src/genetic_variances.cc src/multi_lmm.cc src/uni_lmm.cc src/statistics.cc src/data_manage.cc src/simulations.cc)
 target_link_libraries(_SNPLIB PRIVATE pybind11::module ${LINK_LIBRARIES})
 set_target_properties(_SNPLIB PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}" SUFFIX "${PYTHON_MODULE_EXTENSION}")

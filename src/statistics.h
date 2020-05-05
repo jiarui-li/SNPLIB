@@ -14,7 +14,7 @@
 #endif
 
 #include "logistc_regression.h"
-#include "unpack_geno.h"
+#include "snp.h"
 
 namespace snplib {
 void CalcAlleleFrequencies(const uint8_t *geno, size_t num_samples,

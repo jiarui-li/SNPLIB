@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "logistc_regression.h"
-#include "unpack_geno.h"
+#include "snp.h"
 
 namespace snplib {
 void CalcAdjustedGRM(const uint8_t *geno, size_t num_samples, size_t num_snps,

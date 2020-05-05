@@ -63,17 +63,15 @@ void CalcMissing(const uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcAdjustedAFThread(const uint8_t *geno, size_t num_samples,
                           size_t num_snps, double *covariates,
                           size_t num_covariates, double *af) {
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
   auto *mask_d = new double[num_samples];
   auto *geno_d = new double[num_samples];
   auto local_ind = ind++;
   LogisticRegress<2> worker(num_samples, num_covariates);
   while (local_ind < num_snps) {
     auto *tmp_af = af + local_ind * num_samples;
-    auto *tmp_g = geno + local_ind * num_bytes;
-    UnpackGeno(tmp_g, num_samples, geno_table, mask_table, geno_d, mask_d);
+    SNP snp(geno, num_samples);
+    snp += local_ind;
+    snp.UnpackGeno(geno_table, mask_table, geno_d, mask_d);
     worker.Estimate(covariates, geno_d, mask_d);
     auto *u = worker.GetU();
     for (size_t i = 0; i < num_samples; ++i) {
@@ -101,16 +99,14 @@ void CalcAdjustedAF(const uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcAdjustedMAFThread(const uint8_t *geno, size_t num_samples,
                            size_t num_snps, double *covariates,
                            size_t num_covariates, double *min_maf) {
-  auto num_full_bytes = num_samples / 4;
-  auto num_samples_left = num_samples % 4;
-  auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
   auto *mask_d = new double[num_samples];
   auto *geno_d = new double[num_samples];
   auto local_ind = ind++;
   LogisticRegress<2> worker(num_samples, num_covariates);
   while (local_ind < num_snps) {
-    auto *tmp_g = geno + local_ind * num_bytes;
-    UnpackGeno(tmp_g, num_samples, geno_table, mask_table, geno_d, mask_d);
+    SNP snp(geno, num_samples);
+    snp += local_ind;
+    snp.UnpackGeno(geno_table, mask_table, geno_d, mask_d);
     worker.Estimate(covariates, geno_d, mask_d);
     auto *u = worker.GetU();
     double mm = 1.0;
