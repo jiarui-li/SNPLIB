@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cstring>
 #include <thread>
 #include <vector>
 #ifdef _MSC_VER

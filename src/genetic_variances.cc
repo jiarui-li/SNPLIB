@@ -1,7 +1,7 @@
 #include "genetic_variances.h"
 
 namespace {
-std::atomic_size_t index;
+std::atomic_size_t ind;
 }
 
 namespace snplib {
@@ -11,9 +11,9 @@ void CalcUniLMMThread(const double *traits, const double *covariates,
                       double *res) {
   UniLMM worker(lambda, covariates, num_samples, num_covariates);
   LineSearch<UniLMM> searcher(worker);
-  size_t local_index = index++;
-  while (local_index < num_traits) {
-    worker.CalcInitialGuess(traits + local_index * num_samples);
+  size_t local_ind = ind++;
+  while (local_ind < num_traits) {
+    worker.CalcInitialGuess(traits + local_ind * num_samples);
     double a;
     double f_old = worker.CalcLikelihood();
     for (size_t i = 0; i < 15; ++i) {
@@ -34,10 +34,10 @@ void CalcUniLMMThread(const double *traits, const double *covariates,
       }
     }
     auto var = worker.GetVars();
-    vars[2 * local_index] = var[0];
-    vars[2 * local_index + 1] = var[1];
-    worker.CalcRes(res + local_index * num_samples);
-    local_index = index++;
+    vars[2 * local_ind] = var[0];
+    vars[2 * local_ind + 1] = var[1];
+    worker.CalcRes(res + local_ind * num_samples);
+    local_ind = ind++;
   }
 }
 void CalcUniLMM(const double *traits, const double *covariates,
@@ -45,7 +45,7 @@ void CalcUniLMM(const double *traits, const double *covariates,
                 size_t num_traits, double *vars, double *res,
                 size_t num_threads) {
   std::vector<std::thread> workers;
-  index = 0;
+  ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CalcUniLMMThread, traits, covariates, lambda,
                          num_samples, num_covariates, num_traits, vars, res);
@@ -64,11 +64,11 @@ void CalcMultiLMM_REMLThread(const double *covariates, const double *lambda,
   MultiLMM_REML worker(lambda, covariates, num_samples, num_covariates,
                        num_dims);
   LineSearch<MultiLMM_REML> searcher(worker);
-  auto local_index = index++;
-  while (local_index < num_traits) {
-    worker.CalcInitialGuess(traits + local_index * num_dims * num_samples,
-                            res + local_index * num_dims * num_samples,
-                            vars + local_index * 2 * num_dims);
+  auto local_ind = ind++;
+  while (local_ind < num_traits) {
+    worker.CalcInitialGuess(traits + local_ind * num_dims * num_samples,
+                            res + local_ind * num_dims * num_samples,
+                            vars + local_ind * 2 * num_dims);
     double a;
     double f_old = worker.CalcLikelihood();
     for (size_t i = 0; i < 15; ++i) {
@@ -88,9 +88,9 @@ void CalcMultiLMM_REMLThread(const double *covariates, const double *lambda,
         break;
       }
     }
-    worker.GetSigmaE(sigma_e + local_index * num_dims * num_dims);
-    worker.GetSigmaG(sigma_g + local_index * num_dims * num_dims);
-    local_index = index++;
+    worker.GetSigmaE(sigma_e + local_ind * num_dims * num_dims);
+    worker.GetSigmaG(sigma_g + local_ind * num_dims * num_dims);
+    local_ind = ind++;
   }
 }
 void CalcMultiLMM_REML(const double *covariates, const double *lambda,
@@ -100,7 +100,7 @@ void CalcMultiLMM_REML(const double *covariates, const double *lambda,
                        size_t num_traits, double *sigma_e, double *sigma_g,
                        size_t num_threads) {
   std::vector<std::thread> workers;
-  index = 0;
+  ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CalcMultiLMM_REMLThread, covariates, lambda, traits,
                          res, vars, num_samples, num_covariates, num_dims,
@@ -117,10 +117,10 @@ void CalcMultiLMM_RMLThread(const double *lambda, const double *res,
                             double *sigma_g) {
   MultiLMM_RML worker(lambda, num_samples, num_covariates, num_dims);
   LineSearch<MultiLMM_RML> searcher(worker);
-  auto local_index = index++;
-  while (local_index < num_traits) {
-    worker.CalcInitialGuess(res + local_index * num_dims * num_samples,
-                            vars + local_index * 2 * num_dims);
+  auto local_ind = ind++;
+  while (local_ind < num_traits) {
+    worker.CalcInitialGuess(res + local_ind * num_dims * num_samples,
+                            vars + local_ind * 2 * num_dims);
     double a;
     double f_old = worker.CalcLikelihood();
     for (size_t i = 0; i < 15; ++i) {
@@ -140,9 +140,9 @@ void CalcMultiLMM_RMLThread(const double *lambda, const double *res,
         break;
       }
     }
-    worker.GetSigmaE(sigma_e + local_index * num_dims * num_dims);
-    worker.GetSigmaG(sigma_g + local_index * num_dims * num_dims);
-    local_index = index++;
+    worker.GetSigmaE(sigma_e + local_ind * num_dims * num_dims);
+    worker.GetSigmaG(sigma_g + local_ind * num_dims * num_dims);
+    local_ind = ind++;
   }
 }
 
@@ -151,7 +151,7 @@ void CalcMultiLMM_RML(const double *lambda, const double *res,
                       size_t num_covariates, size_t num_dims, size_t num_traits,
                       double *sigma_e, double *sigma_g, size_t num_threads) {
   std::vector<std::thread> workers;
-  index = 0;
+  ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CalcMultiLMM_RMLThread, lambda, res, vars, num_samples,
                          num_covariates, num_dims, num_traits, sigma_e,

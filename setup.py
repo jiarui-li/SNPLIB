@@ -72,9 +72,9 @@ class CMakeBuild(build_ext):
             if pf == "Windows":
                 openblas_default_root = 'C:/opt'
             if pf == "Linux":
-                openblas_default_root = '/usr/local'
+                openblas_default_root = '/opt/OpenBLAS'
             if pf == 'Darwin':
-                openblas_default_root = '/usr/local'
+                openblas_default_root = '/opt/OpenBLAS'
             openblas_root = input(
                 'The directory of OpenBLAS [{}]: '.format(openblas_default_root))
             if not openblas_root:

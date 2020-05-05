@@ -1,6 +1,7 @@
 #ifndef SNPLIB_SRC_DATA_MANAGE_H_
 #define SNPLIB_SRC_DATA_MANAGE_H_
 
+#include <cmath>
 #include <vector>
 
 #include "unpack_geno.h"

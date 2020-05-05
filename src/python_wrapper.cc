@@ -20,8 +20,9 @@ using geno_t = py::array_t<uint8_t, py::array::f_style | py::array::forcecast>;
 // Data Manage
 void FlipGeno(geno_t genotype, size_t num_samples, std::vector<int32_t> &idx) {
   auto geno_buf = genotype.request();
+  auto num_snps = static_cast<size_t>(geno_buf.shape[1]);
   auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
-  snplib::FlipGeno(geno_ptr, num_samples, idx);
+  snplib::FlipGeno(geno_ptr, num_samples, num_snps, idx);
 }
 void Keep(geno_t src_geno, geno_t dest_geno, size_t num_src_samples,
           size_t num_dest_samples, std::vector<int32_t> &idx) {
@@ -377,7 +378,37 @@ std::tuple<array, array> CalcCCAGWAS(geno_t genotype, array trait,
                       betas_ptr, stats_ptr, num_threads);
   return std::make_tuple(betas, stats);
 }
-
+std::tuple<array, array, array> CalcUniLMMGWAS(geno_t genotype,
+                                               array covariates, array trait,
+                                               array lambda, array V,
+                                               size_t num_threads) {
+  auto geno_buf = genotype.request();
+  auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
+  auto num_snps = static_cast<size_t>(geno_buf.shape[1]);
+  auto cov_buf = covariates.request();
+  auto num_samples = static_cast<size_t>(cov_buf.shape[0]);
+  auto num_covariates = static_cast<size_t>(cov_buf.shape[1]);
+  auto *cov_ptr = reinterpret_cast<double *>(cov_buf.ptr);
+  auto trait_buf = trait.request();
+  auto *trait_ptr = reinterpret_cast<double *>(trait_buf.ptr);
+  auto lambda_buf = lambda.request();
+  auto *lambda_ptr = reinterpret_cast<double *>(lambda_buf.ptr);
+  auto V_buf = V.request();
+  auto *V_ptr = reinterpret_cast<double *>(V_buf.ptr);
+  array betas(num_snps);
+  array fstats(num_snps);
+  array dfs(num_snps);
+  auto betas_buf = betas.request();
+  auto *betas_ptr = reinterpret_cast<double *>(betas_buf.ptr);
+  auto fstats_buf = fstats.request();
+  auto *fstats_ptr = reinterpret_cast<double *>(fstats_buf.ptr);
+  auto dfs_buf = dfs.request();
+  auto *dfs_ptr = reinterpret_cast<double *>(dfs_buf.ptr);
+  snplib::CalcUniLMMGWAS(geno_ptr, num_samples, num_snps, lambda_ptr, V_ptr,
+                         cov_ptr, num_covariates, trait_ptr, betas_ptr,
+                         fstats_ptr, dfs_ptr, num_threads);
+  return std::make_tuple(betas, fstats, dfs);
+}
 // Simulations
 array UpdateAf(array aaf, size_t num_pops, size_t num_generations,
                size_t effective_sample_size) {
@@ -458,6 +489,7 @@ PYBIND11_MODULE(_SNPLIB, m) {
   m.def("CalcLinearRegressionGWAS", &CalcLinearRegressionGWAS, "");
   m.def("CalcLogisticGWAS", &CalcLogisticGWAS, "");
   m.def("CalcCCAGWAS", &CalcCCAGWAS, "");
+  m.def("CalcUniLMMGWAS", &CalcUniLMMGWAS, "");
   m.def("UpdateAf", &UpdateAf, "");
   m.def("GenerateIndividuals", &GenerateIndividuals, "");
   m.def("GenerateAdmixedIndividuals", &GenerateAdmixedIndividuals, "");

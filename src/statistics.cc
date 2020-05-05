@@ -1,7 +1,7 @@
 #include "statistics.h"
 
 namespace {
-std::atomic_size_t index;
+std::atomic_size_t ind;
 const uint64_t kMask = 0x5555555555555555;  // 0x5555=b0101010101010101
 const std::array<double, 4> geno_table{0.0, 0.0, 1.0, 2.0};
 const std::array<double, 4> mask_table{1.0, 0.0, 1.0, 1.0};
@@ -68,18 +68,18 @@ void CalcAdjustedAFThread(const uint8_t *geno, size_t num_samples,
   auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
   auto *mask_d = new double[num_samples];
   auto *geno_d = new double[num_samples];
-  auto local_index = index++;
+  auto local_ind = ind++;
   LogisticRegress<2> worker(num_samples, num_covariates);
-  while (local_index < num_snps) {
-    auto *tmp_af = af + local_index * num_samples;
-    auto *tmp_g = geno + local_index * num_bytes;
+  while (local_ind < num_snps) {
+    auto *tmp_af = af + local_ind * num_samples;
+    auto *tmp_g = geno + local_ind * num_bytes;
     UnpackGeno(tmp_g, num_samples, geno_table, mask_table, geno_d, mask_d);
     worker.Estimate(covariates, geno_d, mask_d);
     auto *u = worker.GetU();
     for (size_t i = 0; i < num_samples; ++i) {
       tmp_af[i] = u[i] / 2.0;
     }
-    local_index = index++;
+    local_ind = ind++;
   }
   delete[] geno_d;
   delete[] mask_d;
@@ -88,7 +88,7 @@ void CalcAdjustedAF(const uint8_t *geno, size_t num_samples, size_t num_snps,
                     double *covariates, size_t num_covariates, double *af,
                     size_t num_threads) {
   std::vector<std::thread> workers;
-  index = 0;
+  ind = 0;
   set_num_threads(1);
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CalcAdjustedAFThread, geno, num_samples, num_snps,
@@ -106,10 +106,10 @@ void CalcAdjustedMAFThread(const uint8_t *geno, size_t num_samples,
   auto num_bytes = num_full_bytes + num_samples_left > 0 ? 1 : 0;
   auto *mask_d = new double[num_samples];
   auto *geno_d = new double[num_samples];
-  auto local_index = index++;
+  auto local_ind = ind++;
   LogisticRegress<2> worker(num_samples, num_covariates);
-  while (local_index < num_snps) {
-    auto *tmp_g = geno + local_index * num_bytes;
+  while (local_ind < num_snps) {
+    auto *tmp_g = geno + local_ind * num_bytes;
     UnpackGeno(tmp_g, num_samples, geno_table, mask_table, geno_d, mask_d);
     worker.Estimate(covariates, geno_d, mask_d);
     auto *u = worker.GetU();
@@ -120,8 +120,8 @@ void CalcAdjustedMAFThread(const uint8_t *geno, size_t num_samples,
         mm = tmp_maf;
       }
     }
-    min_maf[local_index] = mm;
-    local_index = index++;
+    min_maf[local_ind] = mm;
+    local_ind = ind++;
   }
   delete[] geno_d;
   delete[] mask_d;
@@ -130,7 +130,7 @@ void CalcAdjustedMAF(const uint8_t *geno, size_t num_samples, size_t num_snps,
                      double *covariates, size_t num_covariates, double *min_maf,
                      size_t num_threads) {
   std::vector<std::thread> workers;
-  index = 0;
+  ind = 0;
   set_num_threads(1);
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CalcAdjustedMAFThread, geno, num_samples, num_snps,

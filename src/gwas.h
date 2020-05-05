@@ -24,9 +24,10 @@ void CalcCCAGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
                  const double *trait, size_t num_dims, double *betas,
                  double *stats, size_t num_threads);
 void CalcUniLMMGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
-                    const double *lambda, const double *covariates,
-                    size_t num_covariates, const double *trait, double *betas,
-                    double *fstats, double *dfs, size_t num_threads);
+                    const double *lambda, const double *V,
+                    const double *covariates, size_t num_covariates,
+                    const double *trait, double *betas, double *fstats,
+                    double *dfs, size_t num_threads);
 }  // namespace snplib
 
 #endif  // SNPLIB_SRC_GWAS_H_

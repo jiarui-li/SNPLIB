@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(_SNPLIB CXX)
 set(CMAKE_CXX_STANDARD 14)
-if(BUILD_PYTHON)
-    add_subdirectory(pybind11)
-endif()
+
+add_subdirectory(pybind11)
 
 if(USE_MKL)
     add_definitions(-DUSE_MKL)
@@ -36,6 +35,6 @@ if(USE_OPENBLAS)
     include_directories(${OPENBLAS_ROOT}/include)
 endif()
 
-add_library(_SNPLIB MODULE src/python_wrapper.cc src/adjusted_grm.cc src/data_manage.cc src/genetic_variances.cc src/grm.cc src/gwas.cc)
+add_library(_SNPLIB MODULE src/python_wrapper.cc src/adjusted_grm.cc src/data_manage.cc src/genetic_variances.cc src/grm.cc src/gwas.cc src/ibs.cc src/king.cc src/multi_lmm.cc src/simulations.cc src/statistics.cc src/transpose_geno.cc src/ugrm.cc src/uni_lmm.cc)
 target_link_libraries(_SNPLIB PRIVATE pybind11::module ${LINK_LIBRARIES})
 set_target_properties(_SNPLIB PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}" SUFFIX "${PYTHON_MODULE_EXTENSION}")
