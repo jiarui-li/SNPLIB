@@ -149,7 +149,7 @@ class SNPLIB:
             self.GENO[:, (nParts-1)*nSNPsPart:], af[(nParts-1)*nSNPsPart:], self.nSamples)
         H[(nParts-1)*nSNPsPart:, :] = A.T@G
         Q, _ = npl.qr(H)
-        T = np.zeros((self.nSamples, I*(L+1)), dtype='double', order='F')
+        T = np.zeros((self.nSamples, L*(I+1)), dtype='double', order='F')
         for i in range(nParts-1):
             A = lib.UnpackGRMGeno(
                 self.GENO[:, i*nSNPsPart:(i+1)*nSNPsPart], af[i*nSNPsPart:(i+1)*nSNPsPart], self.nSamples)
@@ -159,25 +159,25 @@ class SNPLIB:
             self.GENO[:, (nParts-1)*nSNPsPart:], af[(nParts-1)*nSNPsPart:], self.nSamples)
         T = T+A@Q[(nParts-1)*nSNPsPart:, :]
         _, S, W = npl.svd(T, full_matrices=False)
-        U = Q@W.T
+        U = Q@W
         S = S[:nComponents]
         S = np.diag(S)
         U = U[:, :nComponents]
         return npl.solve(S, U.T)
 
     def ProjectPCA(self, ref_obj, loadings, nParts=10):
-        nSNPsPart = self.nSNPs//nParts
+        nSNPsPart = math.ceil(self.nSNPs/nParts)
         af = ref_obj.CalcAlleleFrequencies()
         nComponents = loadings.shape[0]
         scores = np.zeros((nComponents, self.nSamples))
-        for i in range(nParts):
+        for i in range(nParts-1):
             A = lib.UnpackGRMGeno(
                 self.GENO[:, i*nSNPsPart:(i+1)*nSNPsPart], af[i*nSNPsPart:(i+1)*nSNPsPart], self.nSamples)
-            scores = scores + loadings[:, i*nSNPsPart:(i+1)*nSNPsPart]@A
+            scores = scores + loadings[:, i*nSNPsPart:(i+1)*nSNPsPart]@A.T
 
         A = lib.UnpackGRMGeno(
-            self.GENO[:, nParts*nSNPsPart:], af[nParts*nSNPsPart:], self.nSamples)
-        scores = scores + loadings[:, nParts*nSNPsPart:]@A
+            self.GENO[:, (nParts-1)*nSNPsPart:], af[nParts*nSNPsPart:], self.nSamples)
+        scores = scores + loadings[:, (nParts-1)*nSNPsPart:]@A.T
         return scores.T
 
     def CalcSUGIBSScores(self, nComponents):
@@ -224,34 +224,33 @@ class SNPLIB:
         A = lib.UnpackUGeno(self.GENO[:, (nParts-1)*nSNPsPart:], self.nSamples)
         H[(nParts-1)*nSNPsPart:, :] = A.T@D@G
         Q, _ = npl.qr(H)
-        T = np.zeros((self.nSamples, I*(L+1)), dtype='double', order='F')
+        T = np.zeros((self.nSamples, L*(I+1)), dtype='double', order='F')
         for i in range(nParts-1):
-            A = lib.UnpackGRMGeno(
+            A = lib.UnpackUGeno(
                 self.GENO[:, i*nSNPsPart:(i+1)*nSNPsPart], self.nSamples)
             T = T + D@A@Q[i*nSNPsPart:(i+1)*nSNPsPart, :]
 
-        A = lib.UnpackGRMGeno(
-            self.GENO[:, (nParts-1)*nSNPsPart:], self.nSamples)
+        A = lib.UnpackUGeno(self.GENO[:, (nParts-1)*nSNPsPart:], self.nSamples)
         T = T+D@A@Q[(nParts-1)*nSNPsPart:, :]
         _, S, W = npl.svd(T, full_matrices=False)
-        U = Q@W.T
+        U = Q@W
         S = S[1:nComponents+1]
         S = np.diag(S)
         U = U[:, 1:nComponents+1]
         return npl.solve(S, U.T)
 
     def ProjectSUGIBS(self, ref_obj, loadings, nParts=10):
-        nSNPsPart = self.nSNPs//nParts
+        nSNPsPart = math.ceil(self.nSNPs/nParts)
         nComponents = loadings.shape[0]
         scores = np.zeros((nComponents, self.nSamples))
-        for i in range(nParts):
+        for i in range(nParts-1):
             A = lib.UnpackUGeno(
                 self.GENO[:, i*nSNPsPart:(i+1)*nSNPsPart], self.nSamples)
-            scores = scores + loadings[:, i*nSNPsPart:(i+1)*nSNPsPart]@A
+            scores = scores + loadings[:, i*nSNPsPart:(i+1)*nSNPsPart]@A.T
 
         A = lib.UnpackUGeno(
-            self.GENO[:, nParts*nSNPsPart:], self.nSamples)
-        scores = scores + loadings[:, nParts*nSNPsPart:]@A
+            self.GENO[:, (nParts-1)*nSNPsPart:], self.nSamples)
+        scores = scores + loadings[:, (nParts-1)*nSNPsPart:]@A.T
         connect = CalcIBSConnection(ref_obj, self, self.nThreads)
         D = np.diag(connect**-1)
         scores = scores@D
