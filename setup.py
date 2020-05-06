@@ -40,7 +40,7 @@ class CMakeBuild(build_ext):
             extdir += os.path.sep
 
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-                      '-DPYTHON_EXECUTABLE=' + sys.executable, '-DBUILD_PYTHON=ON']
+                      '-DPYTHON_EXECUTABLE=' + sys.executable]
 
         blas_library = input('Use Intel MKL(m) or OpenBLAS(o)?')
         blas_library = blas_library.lower()[0]
@@ -110,6 +110,9 @@ class CMakeBuild(build_ext):
 
 setup(
     name="SNPLIB",
+    version="0.1.0",
+    author="Li Jiarui",
+    author_email="jiarui_li@outlook.com",
     packages=['SNPLIB'],
     license="BSD 3-Clause License",
     ext_modules=[CMakeExtension('_SNPLIB')],

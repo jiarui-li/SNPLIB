@@ -2,7 +2,7 @@ import math
 import re
 import numpy as np
 import numpy.linalg as npl
-from scipy import stats
+from scipy.stats import t, chi2, f
 import _SNPLIB as lib
 
 
@@ -23,6 +23,10 @@ def convert_chr(chr_c):
 
 def CalcIBSConnection(src_geno, dest_geno, num_threads):
     return lib.CalcIBSConnection(src_geno.GENO, dest_geno.GENO, src_geno.nSamples, dest_geno.nSamples, num_threads)
+
+
+def UpdateAf(aaf, num_pops, num_generations, effective_sample_size):
+    return lib.UpdateAf(aaf, num_pops, num_generations, effective_sample_size)
 
 
 class SNPLIB:
@@ -65,6 +69,23 @@ class SNPLIB:
         GENO = np.fromfile(filename, dtype=np.uint8, count=-1)
         GENO = GENO[3:]
         self.GENO = np.reshape(GENO, (num_bytes, - 1), order='F')
+
+    # Simulations
+    def GenerateIndividuals(self, af):
+        self.nSamples = af.shape[0]
+        self.nSNPs = af.shape[1]
+        self.GENO = lib.GenerateIndividuals(af)
+
+    def GenerateAdmixedIndividuals(self, af, num_samples):
+        self.nSamples = num_samples
+        self.nSNPs = af.shape[1]
+        self.GENO = lib.GenerateAdmixedIndividuals(af, num_samples)
+
+    def GeneratePairwiseSiblings(self, parent_obj):
+        self.nSamples = parent_obj.nSamples
+        self.nSNPs = parent_obj.nSNPs
+        self.GENO = lib.GeneratePairwiseSiblings(
+            parent_obj.GENO, self.nSamples//2)
 
     # Statistics
     def CalcAlleleFrequencies(self):
@@ -159,7 +180,7 @@ class SNPLIB:
             self.GENO[:, (nParts-1)*nSNPsPart:], af[(nParts-1)*nSNPsPart:], self.nSamples)
         T = T+A@Q[(nParts-1)*nSNPsPart:, :]
         _, S, W = npl.svd(T, full_matrices=False)
-        U = Q@W
+        U = Q@W.T
         S = S[:nComponents]
         S = np.diag(S)
         U = U[:, :nComponents]
@@ -233,7 +254,7 @@ class SNPLIB:
         A = lib.UnpackUGeno(self.GENO[:, (nParts-1)*nSNPsPart:], self.nSamples)
         T = T+D@A@Q[(nParts-1)*nSNPsPart:, :]
         _, S, W = npl.svd(T, full_matrices=False)
-        U = Q@W
+        U = Q@W.T
         S = S[1:nComponents+1]
         S = np.diag(S)
         U = U[:, 1:nComponents+1]
@@ -255,3 +276,11 @@ class SNPLIB:
         D = np.diag(connect**-1)
         scores = scores@D
         return scores.T
+
+    # GWAS
+    def CalcLinearRegressionGWAS(self, trait, covariates):
+        betas, stats = lib.CalcLinearRegressionGWAS(
+            self.GENO, covariates, trait, self.nThreads)
+        df = len(trait)-covariates.shape[1]
+        pvalues = t.cdf(stats, df=df)
+        return betas, pvalues

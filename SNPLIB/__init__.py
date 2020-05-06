@@ -1,1 +1,2 @@
-from .snplib import SNPLIB
+from .snplib import *
+from .genetic_variances import *
