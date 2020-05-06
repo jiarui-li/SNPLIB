@@ -128,6 +128,43 @@ class SNPLIB:
         U = U[:, :nComponents]
         return npl.solve(S, U.T)
 
+    def CalcPCALoadingsApprox(self, nComponents, nParts=10):
+        af = self.CalcAlleleFrequencies()
+        grm = lib.CalcGRMMatrix(self.GENO, af, self.nSamples, self.nThreads)
+        L = 2*nComponents
+        I = 10
+        G = np.zeros((self.nSamples, I*(L+1)), dtype='double', order='F')
+        G[:, :L] = np.random.randn(self.nSamples, L)
+        for i in range(1, I):
+            G[:, i*L: (i+1)*L] = grm@G[:, (i-1)*L:i*L]
+
+        H = np.zeros((self.nSNPs, L*(I+1)), dtype='double', order='F')
+        nSNPsPart = math.ceil(self.nSNPs/nParts)
+        for i in range(nParts-1):
+            A = lib.UnpackGRMGeno(
+                self.GENO[:, i*nSNPsPart:(i+1)*nSNPsPart], af[i*nSNPsPart:(i+1)*nSNPsPart], self.nSamples)
+            H[i*nSNPsPart:(i+1)*nSNPsPart, :] = A.T@G
+
+        A = lib.UnpackGRMGeno(
+            self.GENO[:, (nParts-1)*nSNPsPart:], af[(nParts-1)*nSNPsPart:], self.nSamples)
+        H[(nParts-1)*nSNPsPart:, :] = A.T@G
+        Q, _ = npl.qr(H)
+        T = np.zeros((self.nSamples, I*(L+1)), dtype='double', order='F')
+        for i in range(nParts-1):
+            A = lib.UnpackGRMGeno(
+                self.GENO[:, i*nSNPsPart:(i+1)*nSNPsPart], af[i*nSNPsPart:(i+1)*nSNPsPart], self.nSamples)
+            T = T + A@Q[i*nSNPsPart:(i+1)*nSNPsPart, :]
+
+        A = lib.UnpackGRMGeno(
+            self.GENO[:, (nParts-1)*nSNPsPart:], af[(nParts-1)*nSNPsPart:], self.nSamples)
+        T = T+A@Q[(nParts-1)*nSNPsPart:, :]
+        _, S, W = npl.svd(T, full_matrices=False)
+        U = Q@W.T
+        S = S[:nComponents]
+        S = np.diag(S)
+        U = U[:, :nComponents]
+        return npl.solve(S, U.T)
+
     def ProjectPCA(self, ref_obj, loadings, nParts=10):
         nSNPsPart = self.nSNPs//nParts
         af = ref_obj.CalcAlleleFrequencies()
@@ -158,9 +195,48 @@ class SNPLIB:
         d = np.sum(ibs, axis=0)
         D = np.diag(d**-0.5)
         A = lib.UnpackUGeno(self.GENO, self.nSamples)
-        A = D@A.T
-        U, s, _ = npl.svd(A, full_matrices=False)
+        A = D@A
+        U, s, _ = npl.svd(A.T, full_matrices=False)
         S = np.diag(s[1:nComponents+1])
+        U = U[:, 1:nComponents+1]
+        return npl.solve(S, U.T)
+
+    def CalcSUGIBSLoadingsApprox(self, nComponents, nParts=10):
+        L = 2*nComponents
+        I = 10
+        G = np.zeros((self.nSamples, I*(L+1)), dtype='double', order='F')
+        G[:, :L] = np.random.randn(self.nSamples, L)
+        ibs = self.CalcIBSMatrix()
+        ugrm = self.CalcUGRMMatrix()
+        d = np.sum(ibs, axis=0)
+        D = np.diag(d**-0.5)
+        ugrm = D@ugrm@D
+        for i in range(1, I):
+            G[:, i*L: (i+1)*L] = ugrm@G[:, (i-1)*L:i*L]
+
+        H = np.zeros((self.nSNPs, L*(I+1)), dtype='double', order='F')
+        nSNPsPart = math.ceil(self.nSNPs/nParts)
+        for i in range(nParts-1):
+            A = lib.UnpackUGeno(
+                self.GENO[:, i*nSNPsPart:(i+1)*nSNPsPart], self.nSamples)
+            H[i*nSNPsPart:(i+1)*nSNPsPart, :] = A.T@D@G
+
+        A = lib.UnpackUGeno(self.GENO[:, (nParts-1)*nSNPsPart:], self.nSamples)
+        H[(nParts-1)*nSNPsPart:, :] = A.T@D@G
+        Q, _ = npl.qr(H)
+        T = np.zeros((self.nSamples, I*(L+1)), dtype='double', order='F')
+        for i in range(nParts-1):
+            A = lib.UnpackGRMGeno(
+                self.GENO[:, i*nSNPsPart:(i+1)*nSNPsPart], self.nSamples)
+            T = T + D@A@Q[i*nSNPsPart:(i+1)*nSNPsPart, :]
+
+        A = lib.UnpackGRMGeno(
+            self.GENO[:, (nParts-1)*nSNPsPart:], self.nSamples)
+        T = T+D@A@Q[(nParts-1)*nSNPsPart:, :]
+        _, S, W = npl.svd(T, full_matrices=False)
+        U = Q@W.T
+        S = S[1:nComponents+1]
+        S = np.diag(S)
         U = U[:, 1:nComponents+1]
         return npl.solve(S, U.T)
 
