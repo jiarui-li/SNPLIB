@@ -21,6 +21,7 @@ void UnpackGRMGeno(const uint8_t *geno, const double *af, size_t num_samples,
     geno_table[3] = (2.0 - mu) / std;
     auto *snp_geno_d = geno_d + i * num_samples;
     snp.UnpackGeno(geno_table, snp_geno_d);
+    snp += 1;
   }
 }
 void UnpackUGeno(const uint8_t *geno, size_t num_samples, size_t num_snps,
@@ -30,6 +31,7 @@ void UnpackUGeno(const uint8_t *geno, size_t num_samples, size_t num_snps,
   for (size_t i = 0; i < num_snps; ++i) {
     auto *snp_geno_d = geno_d + i * num_samples;
     snp.UnpackGeno(geno_table, snp_geno_d);
+    snp += 1;
   }
 }
 void FlipGeno(uint8_t *geno, size_t num_samples, size_t num_snps,
