@@ -140,7 +140,7 @@ void CalcGCTAThread(const uint8_t *geno, const double *af, size_t num_samples,
 namespace snplib {
 void CalcGRMMatrix(const uint8_t *geno, const double *af, size_t num_samples,
                    size_t num_snps, double *grm, size_t num_threads) {
-  std::vector<std::thread> workers(num_threads);
+  std::vector<std::thread> workers;
   auto *matrices = new double[num_samples * num_samples * num_threads];
   auto num_snps_job = num_snps / num_threads + 1;
   auto num_snps_left = num_snps % num_threads;
@@ -148,17 +148,17 @@ void CalcGRMMatrix(const uint8_t *geno, const double *af, size_t num_samples,
   auto num_samples_left = num_samples % 4;
   auto num_bytes = num_full_bytes + (num_samples_left > 0 ? 1 : 0);
   for (size_t i = 0; i < num_snps_left; ++i) {
-    workers[i] =
-        std::thread(CalcGRMMatrixThread, geno, af, num_samples, num_snps_job,
-                    matrices + i * num_samples * num_samples);
+    workers.emplace_back(CalcGRMMatrixThread, geno, af, num_samples,
+                         num_snps_job,
+                         matrices + i * num_samples * num_samples);
     geno += num_snps_job * num_bytes;
     af += num_snps_job;
   }
   --num_snps_job;
   for (size_t i = num_snps_left; i < num_threads; ++i) {
-    workers[i] =
-        std::thread(CalcGRMMatrixThread, geno, af, num_samples, num_snps_job,
-                    matrices + i * num_samples * num_samples);
+    workers.emplace_back(CalcGRMMatrixThread, geno, af, num_samples,
+                         num_snps_job,
+                         matrices + i * num_samples * num_samples);
     geno += num_snps_job * num_bytes;
     af += num_snps_job;
   }
@@ -184,7 +184,7 @@ void CalcGRMMatrix(const uint8_t *geno, const double *af, size_t num_samples,
 }
 void CalcGCTADiagonal(const uint8_t *geno, const double *af, size_t num_samples,
                       size_t num_snps, double *diagonal, size_t num_threads) {
-  std::vector<std::thread> workers(num_threads);
+  std::vector<std::thread> workers;
   auto *diagonals = new double[num_samples * num_threads];
   auto num_snps_job = num_snps / num_threads + 1;
   auto num_snps_left = num_snps % num_threads;
@@ -192,15 +192,15 @@ void CalcGCTADiagonal(const uint8_t *geno, const double *af, size_t num_samples,
   auto num_samples_left = num_samples % 4;
   auto num_bytes = num_full_bytes + (num_samples_left > 0 ? 1 : 0);
   for (size_t i = 0; i < num_snps_left; ++i) {
-    workers[i] = std::thread(CalcGCTAThread, geno, af, num_samples,
-                             num_snps_job, diagonals + i * num_samples);
+    workers.emplace_back(CalcGCTAThread, geno, af, num_samples, num_snps_job,
+                         diagonals + i * num_samples);
     geno += num_snps_job * num_bytes;
     af += num_snps_job;
   }
   --num_snps_job;
   for (size_t i = num_snps_left; i < num_threads; ++i) {
-    workers[i] = std::thread(CalcGCTAThread, geno, af, num_samples,
-                             num_snps_job, diagonals + i * num_samples);
+    workers.emplace_back(CalcGCTAThread, geno, af, num_samples, num_snps_job,
+                         diagonals + i * num_samples);
     geno += num_snps_job * num_bytes;
     af += num_snps_job;
   }

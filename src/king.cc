@@ -92,7 +92,7 @@ void CalcKINGThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
 namespace snplib {
 void CalcKINGMatrix(const uint8_t *geno, size_t num_samples, size_t num_snps,
                     double *matrix, size_t num_threads) {
-  std::vector<std::thread> workers(num_threads);
+  std::vector<std::thread> workers;
   auto *matrices = new int64_t[num_samples * num_samples * num_threads];
   auto *vectors = new uint64_t[num_samples * num_threads];
   auto num_snps_job = num_snps / num_threads + 1;
@@ -101,16 +101,16 @@ void CalcKINGMatrix(const uint8_t *geno, size_t num_samples, size_t num_snps,
   auto num_samples_left = num_samples % 4;
   auto num_bytes = num_full_bytes + (num_samples_left > 0 ? 1 : 0);
   for (size_t i = 0; i < num_snps_left; ++i) {
-    workers[i] = std::thread(CalcKINGThread, geno, num_samples, num_snps_job,
-                             matrices + i * num_samples * num_samples,
-                             vectors + i * num_samples);
+    workers.emplace_back(CalcKINGThread, geno, num_samples, num_snps_job,
+                         matrices + i * num_samples * num_samples,
+                         vectors + i * num_samples);
     geno += num_snps_job * num_bytes;
   }
   --num_snps_job;
   for (size_t i = num_snps_left; i < num_threads; ++i) {
-    workers[i] = std::thread(CalcKINGThread, geno, num_samples, num_snps_job,
-                             matrices + i * num_samples * num_samples,
-                             vectors + i * num_samples);
+    workers.emplace_back(CalcKINGThread, geno, num_samples, num_snps_job,
+                         matrices + i * num_samples * num_samples,
+                         vectors + i * num_samples);
     geno += num_snps_job * num_bytes;
   }
   for (auto &&iter : workers) {
