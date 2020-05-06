@@ -133,7 +133,7 @@ class SNPLIB:
         grm = lib.CalcGRMMatrix(self.GENO, af, self.nSamples, self.nThreads)
         L = 2*nComponents
         I = 10
-        G = np.zeros((self.nSamples, I*(L+1)), dtype='double', order='F')
+        G = np.zeros((self.nSamples, L*(I+1)), dtype='double', order='F')
         G[:, :L] = np.random.randn(self.nSamples, L)
         for i in range(1, I):
             G[:, i*L: (i+1)*L] = grm@G[:, (i-1)*L:i*L]
@@ -202,9 +202,9 @@ class SNPLIB:
         return npl.solve(S, U.T)
 
     def CalcSUGIBSLoadingsApprox(self, nComponents, nParts=10):
-        L = 2*nComponents
+        L = 2*(nComponents+1)
         I = 10
-        G = np.zeros((self.nSamples, I*(L+1)), dtype='double', order='F')
+        G = np.zeros((self.nSamples, L*(I+1)), dtype='double', order='F')
         G[:, :L] = np.random.randn(self.nSamples, L)
         ibs = self.CalcIBSMatrix()
         ugrm = self.CalcUGRMMatrix()
