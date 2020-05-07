@@ -7,6 +7,8 @@
 #include "snp.h"
 
 namespace snplib {
+void UnpackGeno(const uint8_t *geno, size_t num_samples, size_t num_snps,
+                double *geno_d);
 void UnpackGRMGeno(const uint8_t *geno, const double *af, size_t num_samples,
                    size_t num_snps, double *geno_d);
 void UnpackUGeno(const uint8_t *geno, size_t num_samples, size_t num_snps,

@@ -3,6 +3,7 @@ import re
 import numpy as np
 import numpy.linalg as npl
 from scipy.stats import t, chi2, f
+from copy import *
 import _SNPLIB as lib
 
 
@@ -87,7 +88,47 @@ class SNPLIB:
         self.GENO = lib.GeneratePairwiseSiblings(
             parent_obj.GENO, self.nSamples//2)
 
+    # Data manage
+    def UnpackGeno(self):
+        return lib.UnpackGeno(self.GENO, self.nSamples)
+
+    def Keep(self, index):
+        result = SNPLIB(self.nThreads)
+        result.nSamples = len(index)
+        if self.FID:
+            result.FID = deepcopy(self.FID[index])
+            result.IID = deepcopy(self.IID[index])
+            result.PID = deepcopy(self.PID[index])
+            result.MID = deepcopy(self.MID[index])
+            result.Sex = deepcopy(self.Sex[index])
+            result.CHR = deepcopy(self.CHR)
+            result.RSID = deepcopy(self.RSID)
+            result.POS = deepcopy(self.POS)
+            result.ALT = deepcopy(self.ALT)
+            result.REF = deepcopy(self.REF)
+        result.nSNPs = deepcopy(self.nSNPs)
+        result.GENO = lib.Keep(self.GENO, self.nSamples, index)
+        return result
+
+    def Extract(self, index):
+        result = SNPLIB(self.nThreads)
+        if self.FID:
+            result.FID = deepcopy(self.FID)
+            result.IID = deepcopy(self.IID)
+            result.PID = deepcopy(self.PID)
+            result.MID = deepcopy(self.MID)
+            result.Sex = deepcopy(self.Sex)
+            result.CHR = deepcopy(self.CHR[index])
+            result.RSID = deepcopy(self.RSID[index])
+            result.POS = deepcopy(self.POS[index])
+            result.ALT = deepcopy(self.ALT[index])
+            result.REF = deepcopy(self.REF[index])
+        result.nSamples = deepcopy(self.nSamples)
+        result.nSNPs = len(index)
+        result.GENO = deepcopy(self.GENO[:, index])
+        return result
     # Statistics
+
     def CalcAlleleFrequencies(self):
         return lib.CalcAlleleFrequencies(self.GENO, self.nSamples)
 

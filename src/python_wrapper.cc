@@ -24,18 +24,29 @@ void FlipGeno(geno_t genotype, size_t num_samples, std::vector<int32_t> &idx) {
   auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
   snplib::FlipGeno(geno_ptr, num_samples, num_snps, idx);
 }
-void Keep(geno_t src_geno, geno_t dest_geno, size_t num_src_samples,
-          size_t num_dest_samples, std::vector<int32_t> &idx) {
-  auto src_geno_buf = src_geno.request();
+geno_t Keep(geno_t geno, size_t num_samples, std::vector<int32_t> &idx) {
+  auto geno_buf = geno.request();
+  auto geno_buf = geno.request();
+  auto num_snps = geno_buf.shape[1];
+  auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
+  auto num_dest_samples = static_cast<size_t>(idx.size());
+  auto num_bytes = num_dest_samples / 4 + ((num_dest_samples % 4) > 0 ? 1 : 0);
+  auto dest_geno = geno_t(std::array<size_t, 2>{num_bytes, num_snps});
   auto dest_geno_buf = dest_geno.request();
-  if (src_geno_buf.shape[1] != dest_geno_buf.shape[1]) {
-    throw std::runtime_error("They must have same number of SNPs");
-  }
-  auto num_snps = src_geno_buf.shape[1];
-  auto *src_geno_ptr = reinterpret_cast<uint8_t *>(src_geno_buf.ptr);
   auto *dest_geno_ptr = reinterpret_cast<uint8_t *>(dest_geno_buf.ptr);
-  snplib::Keep(src_geno_ptr, dest_geno_ptr, num_src_samples, num_dest_samples,
-               num_snps, idx);
+  snplib::Keep(geno_ptr, dest_geno_ptr, num_samples, num_dest_samples, num_snps,
+               idx);
+  return dest_geno;
+}
+array UnpackGeno(geno_t genotype, size_t num_samples) {
+  auto geno_buf = genotype.request();
+  auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
+  auto num_snps = static_cast<size_t>(geno_buf.shape[1]);
+  array geno_d(std::array<size_t, 2>{num_samples, num_snps});
+  auto geno_d_buf = geno_d.request();
+  auto *geno_d_ptr = reinterpret_cast<double *>(geno_d_buf.ptr);
+  snplib::UnpackGeno(geno_ptr, num_samples, num_snps, geno_d_ptr);
+  return geno_d;
 }
 array UnpackGRMGeno(geno_t genotype, array af, size_t num_samples) {
   auto geno_buf = genotype.request();
@@ -469,6 +480,7 @@ geno_t GeneratePairwiseSiblings(geno_t parent_geno, size_t num_families) {
 PYBIND11_MODULE(_SNPLIB, m) {
   m.def("FlipGeno", &FlipGeno, "Flip the genotype");
   m.def("Keep", &Keep, "Keep the selected individuals");
+  m.def("UnpackGeno", &UnpackGeno, "");
   m.def("UnpackGRMGeno", &UnpackGRMGeno,
         "Unpack the genotype data into the standardized format");
   m.def("UnpackUGeno", &UnpackUGeno,
