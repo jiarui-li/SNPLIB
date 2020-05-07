@@ -143,4 +143,41 @@ void CalcKINGMatrix(const uint8_t *geno, size_t num_samples, size_t num_snps,
   delete[] matrices;
   delete[] vectors;
 }
+std::list<int> FindUnrelatedGroup(const double *matrix, size_t num_samples,
+                                  double threshold) {
+  auto *R = new int[num_samples * num_samples];
+  std::fill(R, R + num_samples * num_samples, 0);
+  for (size_t i = 0; i < num_samples; ++i) {
+    for (size_t j = i + 1; j < num_samples; ++j) {
+      R[i * num_samples + j] = matrix[i * num_samples + j] > threshold ? 1 : 0;
+      R[j * num_samples + i] = R[i * num_samples + j];
+    }
+  }
+  auto *r = new int[num_samples];
+  for (size_t i = 0; i < num_samples; ++i) {
+    r[i] = std::accumulate(R + i * num_samples, R + (i + 1) * num_samples, 0);
+  }
+  std::list<int> I;
+  while (std::any_of(r, r + num_samples, [](int a) { return a > 0; })) {
+    auto idx = std::max_element(r, r + num_samples) - r;
+    for (size_t i = 0; i < num_samples; ++i) {
+      R[idx * num_samples + i] = 0;
+      R[i * num_samples + idx] = 0;
+    }
+    for (size_t i = 0; i < num_samples; ++i) {
+      r[i] = std::accumulate(R + i * num_samples, R + (i + 1) * num_samples, 0);
+    }
+    I.emplace_back(idx);
+  }
+  std::list<int> result;
+  for (int i = 0; i < num_samples; ++i) {
+    auto iter = std::find(I.begin(), I.end(), i);
+    if (iter == I.end()) {
+      result.emplace_back(i);
+    }
+  }
+  delete[] R;
+  delete[] r;
+  return result;
+}
 }  // namespace snplib

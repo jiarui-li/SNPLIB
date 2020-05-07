@@ -129,9 +129,7 @@ class SNPLIB:
 
     def FindUnrelated(self, threshold=0.044):
         king = self.CalcKINGMatrix()
-        R = np.zeros((self.nSamples, self.nSamples))
-        R[king > threshold] = 1
-        r = np.sum(R, axis=0)
+        return lib.FindUnrelatedGroup(king, threshold)
 
     # Ancestry Estimation
 

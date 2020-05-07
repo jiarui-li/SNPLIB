@@ -235,7 +235,12 @@ array CalcUGRMMatrix(geno_t genotype, size_t num_samples, size_t num_threads) {
                          num_threads);
   return matrix;
 }
-
+std::list<int> FindUnrelatedGroup(array matrix, double threshold) {
+  auto matrix_buf = matrix.request();
+  auto *matrix_ptr = reinterpret_cast<double *>(matrix_buf.ptr);
+  auto num_samples = static_cast<size_t>(matrix_buf.shape[0]);
+  return snplib::FindUnrelatedGroup(matrix_ptr, num_samples, threshold);
+}
 // Genetic Variances
 std::tuple<array, array> CalcUniLMM(array traits, array covariates,
                                     array lambda, size_t num_threads) {
@@ -482,6 +487,7 @@ PYBIND11_MODULE(_SNPLIB, m) {
   m.def("CalcIBSConnection", &CalcIBSConnection, "");
   m.def("CalcKINGMatrix", &CalcKINGMatrix, "");
   m.def("CalcUGRMMatrix", &CalcUGRMMatrix, "");
+  m.def("FindUnrelatedGroup", &FindUnrelatedGroup, "");
   m.def("CalcUniLMM", &CalcUniLMM, "");
   m.def("CalcMultiLMM_REML", &CalcMultiLMM_REML, "");
   m.def("CalcMultiLMM_RML", &CalcMultiLMM_RML, "");
