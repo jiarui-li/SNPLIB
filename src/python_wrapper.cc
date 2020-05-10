@@ -26,8 +26,7 @@ void FlipGeno(geno_t genotype, size_t num_samples, std::vector<int32_t> &idx) {
 }
 geno_t Keep(geno_t geno, size_t num_samples, std::vector<int32_t> &idx) {
   auto geno_buf = geno.request();
-  auto geno_buf = geno.request();
-  auto num_snps = geno_buf.shape[1];
+  auto num_snps = static_cast<size_t>(geno_buf.shape[1]);
   auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
   auto num_dest_samples = static_cast<size_t>(idx.size());
   auto num_bytes = num_dest_samples / 4 + ((num_dest_samples % 4) > 0 ? 1 : 0);
