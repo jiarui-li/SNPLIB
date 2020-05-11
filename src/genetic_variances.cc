@@ -45,6 +45,7 @@ void CalcUniLMM(const double *traits, const double *covariates,
                 size_t num_traits, double *vars, double *res,
                 size_t num_threads) {
   std::vector<std::thread> workers;
+  set_num_threads(1);
   ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CalcUniLMMThread, traits, covariates, lambda,
@@ -100,6 +101,7 @@ void CalcMultiLMM_REML(const double *covariates, const double *lambda,
                        size_t num_traits, double *sigma_e, double *sigma_g,
                        size_t num_threads) {
   std::vector<std::thread> workers;
+  set_num_threads(1);
   ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CalcMultiLMM_REMLThread, covariates, lambda, traits,
