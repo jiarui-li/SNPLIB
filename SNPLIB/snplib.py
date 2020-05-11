@@ -27,7 +27,7 @@ def CalcIBSConnection(src_geno, dest_geno, num_threads):
 
 
 def UpdateAf(aaf, num_pops, num_generations, effective_sample_size):
-    return lib.UpdateAf(aaf, num_pops, num_generations, effective_sample_size)
+    return lib.UpdateAf(aaf, num_pops, num_generations, effective_sample_size).T
 
 
 class SNPLIB:
