@@ -116,6 +116,7 @@ void CalcAdmixedGRMThread(const uint8_t *geno, size_t num_samples,
     for (size_t j = 0; j < num_samples; ++j) {
       gcta_diag[j] += (u[j] - 1.0) * geno_d[j] / w[j];
     }
+    snp += 1;
   }
   delete[] geno_d;
   delete[] mask_d;

@@ -3,7 +3,9 @@ import re
 import numpy as np
 import numpy.linalg as npl
 from scipy.stats import t, chi2, f
-from copy import *
+from copy import deepcopy
+from multiprocessing import cpu_count
+from threadpoolctl import threadpool_limits
 import _SNPLIB as lib
 
 
@@ -31,7 +33,7 @@ def UpdateAf(aaf, num_pops, num_generations, effective_sample_size):
 
 
 class SNPLIB:
-    def __init__(self, nThreads=1):
+    def __init__(self, nThreads=cpu_count()//2):
         self.nThreads = nThreads
 
     def importPLINKDATA(self, bfile):
@@ -240,6 +242,15 @@ class SNPLIB:
         scores = scores + loadings[:, (nParts-1)*nSNPsPart:]@A.T
         return scores.T
 
+    def CalcPCAiRScores(self, nComponents, is_exact=False):
+        ind = self.FindUnrelated()
+        Unrelated = self.Keep(ind)
+        if is_exact:
+            loadings = Unrelated.CalcPCALoadingsExact(nComponents)
+        else:
+            loadings = Unrelated.CalcPCALoadingsApprox(nComponents)
+        return self.ProjectPCA(Unrelated, loadings)
+
     def CalcSUGIBSScores(self, nComponents):
         ibs = self.CalcIBSMatrix()
         d = np.sum(ibs, axis=0)
@@ -316,7 +327,16 @@ class SNPLIB:
         scores = scores@D
         return scores.T
 
-    # GWAS
+    def CalcSUGIBSiRScores(self, nComponents, is_exact=False):
+        ind = self.FindUnrelated()
+        Unrelated = self.Keep(ind)
+        if is_exact:
+            loadings = Unrelated.CalcSUGIBSLoadingsExact(nComponents)
+        else:
+            loadings = Unrelated.CalcSUGIBSLoadingsApprox(nComponents)
+        return self.ProjectSUGIBS(Unrelated, loadings)
+
+        # GWAS
     def CalcLinearRegressionGWAS(self, trait, covariates):
         betas, stats = lib.CalcLinearRegressionGWAS(
             self.GENO, covariates, trait, self.nThreads)
