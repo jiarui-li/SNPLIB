@@ -118,5 +118,5 @@ setup(
     ext_modules=[CMakeExtension('_SNPLIB')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
-    install_requires=["numpy", "scipy"],
+    install_requires=["numpy", "scipy", "pandas"],
 )

@@ -143,8 +143,8 @@ void CalcKINGMatrix(const uint8_t *geno, size_t num_samples, size_t num_snps,
   delete[] matrices;
   delete[] vectors;
 }
-std::list<int> FindUnrelatedGroup(const double *matrix, size_t num_samples,
-                                  double threshold) {
+std::vector<int32_t> FindUnrelatedGroup(const double *matrix,
+                                        size_t num_samples, double threshold) {
   auto *R = new int[num_samples * num_samples];
   std::fill(R, R + num_samples * num_samples, 0);
   for (size_t i = 0; i < num_samples; ++i) {
@@ -157,7 +157,7 @@ std::list<int> FindUnrelatedGroup(const double *matrix, size_t num_samples,
   for (size_t i = 0; i < num_samples; ++i) {
     r[i] = std::accumulate(R + i * num_samples, R + (i + 1) * num_samples, 0);
   }
-  std::list<int> I;
+  std::vector<int32_t> I;
   while (std::any_of(r, r + num_samples, [](int a) { return a > 0; })) {
     auto idx = std::max_element(r, r + num_samples) - r;
     for (size_t i = 0; i < num_samples; ++i) {
@@ -169,7 +169,7 @@ std::list<int> FindUnrelatedGroup(const double *matrix, size_t num_samples,
     }
     I.emplace_back(idx);
   }
-  std::list<int> result;
+  std::vector<int32_t> result;
   for (int i = 0; i < num_samples; ++i) {
     auto iter = std::find(I.begin(), I.end(), i);
     if (iter == I.end()) {

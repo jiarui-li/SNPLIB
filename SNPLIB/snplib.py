@@ -2,10 +2,10 @@ import math
 import re
 import numpy as np
 import numpy.linalg as npl
-from scipy.stats import t, chi2, f
+import pandas as pd
 from copy import deepcopy
+from scipy.stats import t, chi2, f
 from multiprocessing import cpu_count
-from threadpoolctl import threadpool_limits
 import _SNPLIB as lib
 
 
@@ -35,38 +35,17 @@ def UpdateAf(aaf, num_pops, num_generations, effective_sample_size):
 class SNPLIB:
     def __init__(self, nThreads=cpu_count()//2):
         self.nThreads = nThreads
+        self.SNPs = []
+        self.Samples = []
 
     def importPLINKDATA(self, bfile):
         filename = bfile + '.bim'
-        self.CHR = []
-        self.RSID = []
-        self.POS = []
-        self.ALT = []
-        self.REF = []
-        with open(filename, 'r') as file:
-            for line in file.readlines():
-                strs = re.split(' |\t', line.strip())
-                self.CHR.append(convert_chr(strs[0]))
-                self.RSID.append(strs[1])
-                self.POS.append(int(strs[3]))
-                self.ALT.append(strs[4])
-                self.REF.append(strs[5])
-        self.nSNPs = len(self.CHR)
-        filename = bfile + '.fam'
-        self.FID = []
-        self.IID = []
-        self.PID = []
-        self.MID = []
-        self.Sex = []
-        with open(filename, 'r') as file:
-            for line in file.readlines():
-                strs = re.split(' |\t', line.strip())
-                self.FID.append(strs[0])
-                self.IID.append(strs[1])
-                self.PID.append(strs[2])
-                self.MID.append(strs[3])
-                self.Sex.append(int(strs[4]))
-        self.nSamples = len(self.FID)
+        self.SNPs = pd.read_table(bfile+'.bim', sep=None, header=0,
+                                  names=['CHR', 'RSID', 'Cm', 'POS', 'ALT', 'REF'], engine='python')
+        self.Samples = pd.read_table(bfile+'.fam', sep=None, header=0, names=[
+                                     'FID', 'IID', 'PID', 'MID', 'Sex', 'Pheno'], engine='python')
+        self.nSNPs = self.SNPs.shape[0]
+        self.nSamples = self.Samples.shape[0]
         filename = bfile + '.bed'
         num_bytes = math.ceil(self.nSamples / 4.0)
         GENO = np.fromfile(filename, dtype=np.uint8, count=-1)
@@ -97,34 +76,18 @@ class SNPLIB:
     def Keep(self, index):
         result = SNPLIB(self.nThreads)
         result.nSamples = len(index)
-        if self.FID:
-            result.FID = deepcopy(self.FID[index])
-            result.IID = deepcopy(self.IID[index])
-            result.PID = deepcopy(self.PID[index])
-            result.MID = deepcopy(self.MID[index])
-            result.Sex = deepcopy(self.Sex[index])
-            result.CHR = deepcopy(self.CHR)
-            result.RSID = deepcopy(self.RSID)
-            result.POS = deepcopy(self.POS)
-            result.ALT = deepcopy(self.ALT)
-            result.REF = deepcopy(self.REF)
+        if not self.Samples.empty:
+            result.Samples = self.Samples.loc[index].copy()
+            result.SNPs = self.SNPs.copy()
         result.nSNPs = deepcopy(self.nSNPs)
         result.GENO = lib.Keep(self.GENO, self.nSamples, index)
         return result
 
     def Extract(self, index):
         result = SNPLIB(self.nThreads)
-        if self.FID:
-            result.FID = deepcopy(self.FID)
-            result.IID = deepcopy(self.IID)
-            result.PID = deepcopy(self.PID)
-            result.MID = deepcopy(self.MID)
-            result.Sex = deepcopy(self.Sex)
-            result.CHR = deepcopy(self.CHR[index])
-            result.RSID = deepcopy(self.RSID[index])
-            result.POS = deepcopy(self.POS[index])
-            result.ALT = deepcopy(self.ALT[index])
-            result.REF = deepcopy(self.REF[index])
+        if not self.SNPs.empty:
+            result.Samples = self.Samples.copy()
+            result.SNPs = self.SNPs.loc[index].copy()
         result.nSamples = deepcopy(self.nSamples)
         result.nSNPs = len(index)
         result.GENO = deepcopy(self.GENO[:, index])
