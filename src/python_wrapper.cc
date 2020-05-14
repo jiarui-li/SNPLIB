@@ -16,25 +16,30 @@
 namespace py = pybind11;
 using array = py::array_t<double, py::array::f_style | py::array::forcecast>;
 using geno_t = py::array_t<uint8_t, py::array::f_style | py::array::forcecast>;
+using index_t = py::array_t<int32_t, py::array::f_style | py::array::forcecast>;
 
 // Data Manage
-void FlipGeno(geno_t genotype, size_t num_samples, std::vector<int32_t> &idx) {
+void FlipGeno(geno_t genotype, size_t num_samples, index_t index) {
   auto geno_buf = genotype.request();
   auto num_snps = static_cast<size_t>(geno_buf.shape[1]);
   auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
-  snplib::FlipGeno(geno_ptr, num_samples, num_snps, idx);
+  auto idx_buf = index.request();
+  auto *idx_ptr = reinterpret_cast<int32_t *>(idx_buf.ptr);
+  snplib::FlipGeno(geno_ptr, num_samples, num_snps, idx_ptr);
 }
-geno_t Keep(geno_t geno, size_t num_samples, std::vector<int32_t> &idx) {
+geno_t Keep(geno_t geno, size_t num_samples, index_t index) {
   auto geno_buf = geno.request();
   auto num_snps = static_cast<size_t>(geno_buf.shape[1]);
   auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
-  auto num_dest_samples = static_cast<size_t>(idx.size());
+  auto idx_buf = index.request();
+  auto *idx_ptr = reinterpret_cast<int32_t *>(idx_buf.ptr);
+  auto num_dest_samples = static_cast<size_t>(idx_buf.size);
   auto num_bytes = num_dest_samples / 4 + ((num_dest_samples % 4) > 0 ? 1 : 0);
   auto dest_geno = geno_t(std::array<size_t, 2>{num_bytes, num_snps});
   auto dest_geno_buf = dest_geno.request();
   auto *dest_geno_ptr = reinterpret_cast<uint8_t *>(dest_geno_buf.ptr);
   snplib::Keep(geno_ptr, dest_geno_ptr, num_samples, num_dest_samples, num_snps,
-               idx);
+               idx_ptr);
   return dest_geno;
 }
 array UnpackGeno(geno_t genotype, size_t num_samples) {
@@ -245,11 +250,16 @@ array CalcUGRMMatrix(geno_t genotype, size_t num_samples, size_t num_threads) {
                          num_threads);
   return matrix;
 }
-std::list<int> FindUnrelatedGroup(array matrix, double threshold) {
+index_t FindUnrelatedGroup(array matrix, double threshold) {
   auto matrix_buf = matrix.request();
   auto *matrix_ptr = reinterpret_cast<double *>(matrix_buf.ptr);
   auto num_samples = static_cast<size_t>(matrix_buf.shape[0]);
-  return snplib::FindUnrelatedGroup(matrix_ptr, num_samples, threshold);
+  auto idx = snplib::FindUnrelatedGroup(matrix_ptr, num_samples, threshold);
+  index_t result(idx.size());
+  auto result_buf = result.request();
+  auto *result_ptr = reinterpret_cast<int32_t *>(result_buf.ptr);
+  std::copy(idx.begin(), idx.end(), result_ptr);
+  return result;
 }
 // Genetic Variances
 std::tuple<array, array> CalcUniLMM(array traits, array covariates,

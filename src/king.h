@@ -17,8 +17,8 @@
 namespace snplib {
 void CalcKINGMatrix(const uint8_t *geno, size_t num_samples, size_t num_snps,
                     double *matrix, size_t num_threads);
-std::list<int> FindUnrelatedGroup(const double *matrix, size_t num_samples,
-                                  double threshold);
+std::vector<int32_t> FindUnrelatedGroup(const double *matrix,
+                                        size_t num_samples, double threshold);
 }  // namespace snplib
 
 #endif  //_SNPLIB_SRC_KING_H_
