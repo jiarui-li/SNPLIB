@@ -40,17 +40,18 @@ class SNPLIB:
 
     def importPLINKDATA(self, bfile):
         filename = bfile + '.bim'
-        self.SNPs = pd.read_table(bfile+'.bim', sep=None, header=0,
-                                  names=['CHR', 'RSID', 'Cm', 'POS', 'ALT', 'REF'], engine='python')
-        self.Samples = pd.read_table(bfile+'.fam', sep=None, header=0, names=[
-                                     'FID', 'IID', 'PID', 'MID', 'Sex', 'Pheno'], engine='python')
-        self.nSNPs = self.SNPs.shape[0]
-        self.nSamples = self.Samples.shape[0]
+        SNPs = pd.read_table(bfile+'.bim', sep=None, header=0,
+                             names=['CHR', 'RSID', 'Cm', 'POS', 'ALT', 'REF'], engine='python')
+        Samples = pd.read_table(bfile+'.fam', sep=None, header=0,
+                                names=['FID', 'IID', 'PID', 'MID', 'Sex', 'Pheno'], engine='python')
+        self.nSNPs = SNPs.shape[0]
+        self.nSamples = Samples.shape[0]
         filename = bfile + '.bed'
         num_bytes = math.ceil(self.nSamples / 4.0)
         GENO = np.fromfile(filename, dtype=np.uint8, count=-1)
         GENO = GENO[3:]
         self.GENO = np.reshape(GENO, (num_bytes, - 1), order='F')
+        return SNPs, Samples
 
     # Simulations
     def GenerateIndividuals(self, af):
@@ -76,18 +77,12 @@ class SNPLIB:
     def Keep(self, index):
         result = SNPLIB(self.nThreads)
         result.nSamples = len(index)
-        if not self.Samples.empty:
-            result.Samples = self.Samples.loc[index].copy()
-            result.SNPs = self.SNPs.copy()
         result.nSNPs = deepcopy(self.nSNPs)
         result.GENO = lib.Keep(self.GENO, self.nSamples, index)
         return result
 
     def Extract(self, index):
         result = SNPLIB(self.nThreads)
-        if not self.SNPs.empty:
-            result.Samples = self.Samples.copy()
-            result.SNPs = self.SNPs.loc[index].copy()
         result.nSamples = deepcopy(self.nSamples)
         result.nSNPs = len(index)
         result.GENO = deepcopy(self.GENO[:, index])
