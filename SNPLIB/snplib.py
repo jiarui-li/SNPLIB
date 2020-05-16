@@ -40,9 +40,9 @@ class SNPLIB:
 
     def importPLINKDATA(self, bfile):
         filename = bfile + '.bim'
-        SNPs = pd.read_table(bfile+'.bim', sep=None, header=0,
-                             names=['CHR', 'RSID', 'Cm', 'POS', 'ALT', 'REF'], engine='python')
-        Samples = pd.read_table(bfile+'.fam', sep=None, header=0,
+        SNPs = pd.read_table(
+            bfile+'.bim', sep=None, names=['CHR', 'RSID', 'Cm', 'POS', 'ALT', 'REF'], engine='python')
+        Samples = pd.read_table(bfile+'.fam', sep=None,
                                 names=['FID', 'IID', 'PID', 'MID', 'Sex', 'Pheno'], engine='python')
         self.nSNPs = SNPs.shape[0]
         self.nSamples = Samples.shape[0]
