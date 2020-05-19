@@ -18,21 +18,21 @@ H = zeros(obj.nSNPs, L*(I+1));
 nSNPsParts = ceil(obj.nSNPs/nParts);
 for i=1:nParts-1
     ind = (i-1)*nSNPsParts+1:i*nSNPsParts;
-    A = UnpackUG_(obj.GENO(:,ind),obj.nSamples)';
+    A = UnpackUGeno_(obj.GENO(:,ind),obj.nSamples)';
     H(ind,:) = A*d*G;
 end
 ind = (nParts-1)*nSNPsParts+1:obj.nSNPs;
-A = UnpackUG_(obj.GENO(:,ind),obj.nSamples)';
+A = UnpackUGeno_(obj.GENO(:,ind),obj.nSamples)';
 H(ind,:) = A*d*G;
 [Q,~] = qr(H,0);
 T = zeros(obj.nSamples,L*(I+1));
 for i=1:nParts-1
     ind = (i-1)*nSNPsParts+1:i*nSNPsParts;
-    A = UnpackUG_(obj.GENO(:,ind),obj.nSamples);
+    A = UnpackUGeno_(obj.GENO(:,ind),obj.nSamples);
     T = T + d*A*Q(ind,:);
 end
 ind = (nParts-1)*nSNPsParts+1:obj.nSNPs;
-A = UnpackUG_(obj.GENO(:,ind),obj.nSamples);
+A = UnpackUGeno_(obj.GENO(:,ind),obj.nSamples);
 T = T + d*A*Q(ind,:);
 [~,S,W] = svd(T,'econ');
 U = Q*W;

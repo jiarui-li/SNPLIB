@@ -4,22 +4,12 @@ classdef SNPLIB < handle
     
     properties (Dependent = true)
         nSNPs
-        nSamples
     end
     properties
         nThreads = 1
     end
     properties (SetAccess = private)
-        CHR
-        RSID
-        POS
-        REF
-        ALT
-        IID
-        FID
-        PID
-        MID
-        Sex
+        nSamples = 0
         GENO
     end
     methods
@@ -37,10 +27,7 @@ classdef SNPLIB < handle
     end
     methods % Gets & Sets
         function out = get.nSNPs(obj)
-            out = length(obj.RSID);
-        end
-        function out = get.nSamples(obj)
-            out = length(obj.FID);
+            out = size(obj.GENO,2);
         end
         function set.nThreads(obj,num_threads)
             if (num_threads<=1)
@@ -48,6 +35,9 @@ classdef SNPLIB < handle
             end
             obj.nThreads = num_threads;
         end
+    end
+    methods
+        
     end
     methods
         function af = CalcAlleleFrequency(obj)
@@ -90,7 +80,7 @@ classdef SNPLIB < handle
         function matrix = CalcGCTAMatrix(obj)
             af = obj.CalcAlleleFrequency();
             matrix = CalcGRMMatrix_(obj.GENO,af,obj.nSamples,obj.nThreads);
-            
+            diagonal = CalcGCTADiagonal_(obj.GENO,af,obj.nSamples,obj.nThreads);
             matrix(eye(obj.nSamples)==1) = diagonal;
         end
         function matrix = CalcIBSMatrix(obj)
@@ -98,6 +88,13 @@ classdef SNPLIB < handle
         end
         function matrix = CalcKING(obj)
             matrix = CalcKING_(obj.GENO,obj.nSamples,obj.nThreads);
+        end
+        function ind = FindUnrelated(obj, threshold)
+            if nargin<2
+                threshold = 0.044;
+            end
+            matrix = obj.CalcKING();
+            ind = FindUnrelatedGroup_(matrix, threshold);
         end
         function [matrix, gcta_diag, p_values] = CalcAdjustedGRMMatrix(obj,scores,check)
             if nargin < 3
@@ -168,12 +165,12 @@ classdef SNPLIB < handle
         end
         function loadings = CalcPCALoadingsExact(obj, nComponents)
             af = obj.CalcAlleleFrequency();
-            A = UnpackPCA_(obj.GENO,af,obj.nSamples)';
+            A = UnpackGRMGeno_(obj.GENO,af,obj.nSamples)';
             [U,S,~] = svds(A,nComponents);
             loadings = S\U';
         end
         function loadings = CalcUPCALoadingsExact(obj, nComponents)
-            A = UnpackUG_(obj.GENO,obj.nSamples)';
+            A = UnpackUGeno_(obj.GENO,obj.nSamples)';
             [U,S,~] = svds(A,nComponents);
             loadings = S\U';
         end
@@ -181,7 +178,7 @@ classdef SNPLIB < handle
             ibs = obj.CalcIBSMatrix();
             d = sum(ibs);
             d = diag(d.^(-0.5));
-            A = UnpackUG_(obj.GENO,obj.nSamples);
+            A = UnpackUGeno_(obj.GENO,obj.nSamples);
             A = A'*d;
             [U,S,~] = svds(A,nComponents+1);
             S = S(2:nComponents+1,2:nComponents+1);
@@ -190,101 +187,67 @@ classdef SNPLIB < handle
         end
     end
     methods
-        function createSIM(obj,geno,N)
-            obj.GENO = geno;
-            V = size(geno,2);
-            obj.CHR = ones(V,1);
-            obj.RSID = (1:V)';
-            obj.POS = (1:V)';
-            obj.REF = repmat({'A'},[V,1]);
-            obj.ALT = repmat({'B'},[V,1]);
-            obj.FID = (1:N)';
-            obj.IID = (1:N)';
-            obj.PID = zeros(N,1);
-            obj.MID = zeros(N,1);
-            obj.Sex = ones(N,1);
+        function [SNPs, Samples] = importPLINKDATA(obj,bfile)
+            filename = [bfile,'.bim'];
+            formatSpec = '%s%s%f%f%s%s';
+            fileID = fopen(filename,'r');
+            dataArray = textscan(fileID, formatSpec, 'EmptyValue' ,NaN, 'ReturnOnError', false);
+            fclose(fileID);
+            chr = dataArray{1};
+            CHR = str2double(chr);
+            CHR(strcmp(chr,'X')) = 23;
+            CHR(strcmp(chr,'Y')) = 24;
+            CHR(strcmp(chr,'XY')) = 25;
+            CHR(strcmp(chr,'MT')) = 26;
+            RSID = dataArray{2};
+            POS = dataArray{4};
+            ALT = upper(dataArray{5});
+            REF = upper(dataArray{6});
+            SNPs = table(CHR,RSID,POS,ALT,REF);
+            filename = [bfile,'.fam'];
+            formatSpec = '%s%s%s%s%f%s';
+            fileID = fopen(filename,'r');
+            dataArray = textscan(fileID, formatSpec, 'MultipleDelimsAsOne', true, 'EmptyValue' ,NaN, 'ReturnOnError', false);
+            fclose(fileID);
+            FID = dataArray{1};
+            IID = dataArray{2};
+            PID = dataArray{3};
+            MID = dataArray{4};
+            Sex = dataArray{5};
+            obj.nSamples = length(FID);
+            Samples = table(FID,IID,PID,MID,Sex);
+            fid = fopen([bfile '.bed'],'rb');
+            bin = fread(fid,inf,'uint8=>uint8');
+            fclose(fid);
+            L = ceil(obj.nSamples/4);
+            obj.GENO = reshape(bin(4:end),[L obj.nSNPs]);
         end
-        function geno = UnpackGENO(obj)
-            geno = UnpackGENO_(obj.GENO,obj.nSamples);
+        function GenerateIndividuals(obj, af)
+            obj.nSamples = size(af,1);
+            obj.nSNPs = size(af,2);
+            obj.GENO = GenerateIndividuals_(af);
+        end
+        function GenerateAdmixedIndividuals(obj, af, num_samples)
+            obj.nSamples = num_samples;
+            obj.nSNPs = size(af,2);
+            obj.GENO = GenerateAdmixedIndividuals_(af, num_samples);
+        end
+        function GeneratePairwiseSiblings(obj, parent_obj)
+            obj.nSamples = parent_obj.nSamples;
+            obj.nSNPs = parent_obj.nSNPs;
+            obj.GENO = GeneratePairwiseSiblings_(parent_obj.GENO,obj.nSamples);
         end
         function extract(obj,ind)
             obj.GENO = obj.GENO(:,ind);
-            obj.RSID = obj.RSID(ind);
-            obj.CHR = obj.CHR(ind);
-            obj.POS = obj.POS(ind);
-            obj.REF = obj.REF(ind);
-            obj.ALT = obj.ALT(ind);
-        end
-        function exportPLINKDATA(obj, bfile)
-            % EXPORTPLINKDATA Export to Plink binary data
-            %   EXPORTPLINKDATA(obj, bfile) export to plink binary data
-            %   (bfile.bed, bfile.bim, bfile.fam) from obj
-            T = table(obj.CHR,obj.RSID,zeros(obj.nSNPs,1),obj.POS,obj.ALT, obj.REF);
-            writetable(T, [bfile,'.txt'], 'WriteVariableNames', false, 'Delimiter', '\t');
-            movefile([bfile,'.txt'],[bfile,'.bim']);
-            T = table(obj.FID,obj.IID,obj.PID,obj.MID, obj.Sex, zeros(obj.nSamples,1));
-            writetable(T, [bfile,'.txt'], 'WriteVariableNames', false, 'Delimiter', '\t');
-            movefile([bfile,'.txt'],[bfile,'.fam']);
-            fid = fopen([bfile '.bed'],'wb');
-            fwrite(fid,[108, 27,1],'uint8');
-            fwrite(fid,obj.GENO,'uint8');
-            fclose(fid);
-        end
-        %         function AlignSNPs(obj,ref_obj)
-        %             if nargin<2 || ~isa(ref_obj,'SNPLIB')
-        %                 error('Please provide a SNPLIB class object as reference!');
-        %             end
-        %             chrs = unique(ref_obj.CHR);
-        %             ind = [];
-        %             alleles = union(union(cellstr(obj.ALT),cellstr(ref_obj.ALT)),union(cellstr(obj.REF),cellstr(ref_obj.REF)));
-        %             AMAP = containers.Map(alleles,1:length(alleles));
-        %             for i=1:length(chrs)
-        %                 ind1 = find(obj.CHR==chrs(i));
-        %                 ind2 = find(ref_obj.CHR==chrs(i));
-        %                 POS1 = uint64(obj.POS(ind1));
-        %                 POS2 = uint64(ref_obj.POS(ind2));
-        %                 set1 = POS1+...
-        %                     uint64(bitshift(cell2mat(AMAP.values(obj.ALT(ind1))),32,'uint64'))+...
-        %                     uint64(bitshift(cell2mat(AMAP.values(obj.REF(ind1))),48,'uint64'));
-        %                 set1_r = POS1+...
-        %                     uint64(bitshift(cell2mat(AMAP.values(obj.REF(ind1))),32,'uint64'))+...
-        %                     uint64(bitshift(cell2mat(AMAP.values(obj.ALT(ind1))),48,'uint64'));
-        %                 set2 = POS2+...
-        %                     uint64(bitshift(cell2mat(AMAP.values(ref_obj.ALT(ind2))),32,'uint64'))+...
-        %                     uint64(bitshift(cell2mat(AMAP.values(ref_obj.REF(ind2))),48,'uint64'));
-        %                 ind_1 = find(ismember(set1,set2));
-        %                 ind_2 = find(ismember(set1_r,set2));
-        %                 ind = [ind;ind1(union(ind_1,ind_2))];
-        %             end
-        %             obj.extract(ind);
-        %         end
-        %         function AlignAlleles(obj,ref_obj)
-        %             % ALIGN_ALLELE Align the alleles with reference dataset
-        %             %   ALIGN_ALLELE(obj, ref_obj)
-        %             if nargin<2 || ~isa(ref_obj,'SNPLIB')
-        %                 error('Please provide a SNPLIB class object as reference!');
-        %             end
-        %             ind = find(~strcmp(obj.REF,ref_obj.REF));
-        %             FlipGeno_(obj.GENO,obj.nSamples,int32(ind-1));
-        %         end
-        function  Align(obj,ref_obj)
-            % Assuming two datasets have the same SNP set
-            ind = find(~strcmp(obj.ALT,ref_obj.ALT));
-            obj.FlipGeno(ind);
-            obj.RSID = ref_obj.RSID;
-            obj.ALT = ref_obj.ALT;
-            obj.REF = ref_obj.REF;
         end
         function FlipGeno(obj,ind)
             FlipGeno_(obj.GENO,obj.nSamples,int32(ind-1));
         end
         function keep(obj,ind)
-            obj.FID = obj.FID(ind);
-            obj.IID = obj.IID(ind);
-            obj.PID = obj.PID(ind);
-            obj.MID = obj.MID(ind);
-            obj.Sex = obj.Sex(ind);
             Keep_(obj.GENO,obj.nSamples,int32(ind-1));
+        end
+        function UnpackGeno(obj)
+            UnpackGeno_(obj.GENO,obj.nSamples);
         end
     end
 end

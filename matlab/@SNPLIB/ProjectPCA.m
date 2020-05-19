@@ -11,11 +11,11 @@ af = ref_obj.CalcAlleleFrequency();
 nSNPsParts = ceil(obj.nSNPs/nParts);
 for i=1:nParts-1
     ind = (i-1)*nSNPsParts+1:i*nSNPsParts;
-    A = UnpackPCA_(obj.GENO(:,ind),af(ind),obj.nSamples)';
+    A = UnpackGRMGeno_(obj.GENO(:,ind),af(ind),obj.nSamples)';
     scores = scores + loadings(:,ind)*A;
 end
 ind = (nParts-1)*nSNPsParts+1:obj.nSNPs;
-A = UnpackPCA_(obj.GENO(:,ind),af(ind),obj.nSamples)';
+A = UnpackGRMGeno_(obj.GENO(:,ind),af(ind),obj.nSamples)';
 scores = scores + loadings(:,ind)*A;
 scores = scores';
 end

@@ -10,13 +10,13 @@ scores = zeros(nComp,obj.nSamples);
 nSNPsParts = ceil(obj.nSNPs/nParts);
 for i=1:nParts-1
     ind = (i-1)*nSNPsParts+1:i*nSNPsParts;
-    A = UnpackUG_(obj.GENO(:,ind),obj.nSamples)';
+    A = UnpackUGeno_(obj.GENO(:,ind),obj.nSamples)';
     scores = scores + loadings(:,ind)*A;
 end
 ind = (nParts-1)*nSNPsParts+1:obj.nSNPs;
-A = UnpackUG_(obj.GENO(:,ind),obj.nSamples)';
+A = UnpackUGeno_(obj.GENO(:,ind),obj.nSamples)';
 scores = scores + loadings(:,ind)*A;
-connect = CalcIBSConnect_(ref_obj.GENO,ref_obj.nSamples,obj.GENO,obj.nSamples,obj.nThreads);
+connect = CalcIBSConnection_(ref_obj.GENO,ref_obj.nSamples,obj.GENO,obj.nSamples,obj.nThreads);
 scores = scores*diag(connect.^(-1));
 scores = scores';
 end

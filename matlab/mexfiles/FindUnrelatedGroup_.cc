@@ -11,7 +11,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   auto *list = mxGetPr(plhs[0]);
   auto iter = index.begin();
   for (size_t i = 0; i < length; ++i) {
-    list[i] = static_cast<double>(*iter);
+    list[i] = static_cast<double>(*iter + 1);
     iter++;
   }
 }
