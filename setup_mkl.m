@@ -53,6 +53,7 @@ mex(cxxoptim,'matlab/mexfiles/UnpackUGeno_.cc','src/data_manage.cc','src/snp.cc'
 mex(cxxoptim,'matlab/mexfiles/FlipGeno_.cc','src/data_manage.cc','src/snp.cc');
 mex(cxxoptim,'matlab/mexfiles/Keep_.cc','src/data_manage.cc','src/snp.cc');
 copyfile('matlab/@SNPLIB/*.m',[install_path,'/@SNPLIB']);
+copyfile('matlab/GLMM/*.m',[install_path,'/GLMM']);
 movefile(['*.',mexext],[install_path,'/mexfiles']);
 cd(install_path);
 clear all;

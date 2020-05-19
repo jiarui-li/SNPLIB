@@ -224,17 +224,14 @@ classdef SNPLIB < handle
         end
         function GenerateIndividuals(obj, af)
             obj.nSamples = size(af,1);
-            obj.nSNPs = size(af,2);
             obj.GENO = GenerateIndividuals_(af);
         end
         function GenerateAdmixedIndividuals(obj, af, num_samples)
             obj.nSamples = num_samples;
-            obj.nSNPs = size(af,2);
             obj.GENO = GenerateAdmixedIndividuals_(af, num_samples);
         end
         function GeneratePairwiseSiblings(obj, parent_obj)
             obj.nSamples = parent_obj.nSamples;
-            obj.nSNPs = parent_obj.nSNPs;
             obj.GENO = GeneratePairwiseSiblings_(parent_obj.GENO,obj.nSamples);
         end
         function extract(obj,ind)
@@ -246,8 +243,8 @@ classdef SNPLIB < handle
         function keep(obj,ind)
             Keep_(obj.GENO,obj.nSamples,int32(ind-1));
         end
-        function UnpackGeno(obj)
-            UnpackGeno_(obj.GENO,obj.nSamples);
+        function geno_d = UnpackGeno(obj)
+            geno_d = UnpackGeno_(obj.GENO,obj.nSamples);
         end
     end
 end
