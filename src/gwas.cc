@@ -175,6 +175,7 @@ void CalcCCAGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
                  const double *trait, size_t num_dims, double *betas,
                  double *rho2, size_t num_threads) {
   std::vector<std::thread> workers;
+  set_num_threads(num_threads);
   double *U = new double[num_samples * num_dims];
   double *S = new double[num_dims];
   double *VT = new double[num_dims * num_dims];

@@ -236,7 +236,7 @@ classdef SNPLIB < handle
             bin = fread(fid,inf,'uint8=>uint8');
             fclose(fid);
             L = ceil(obj.nSamples/4);
-            obj.GENO = reshape(bin(4:end),[L obj.nSNPs]);
+            obj.GENO = reshape(bin(4:end),[L length(REF)]);
         end
         function GenerateIndividuals(obj, af)
             obj.nSamples = size(af,1);
