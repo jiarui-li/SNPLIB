@@ -39,7 +39,7 @@ classdef SNPLIB < handle
     methods
         
     end
-    methods
+    methods % Population Structures
         function af = CalcAlleleFrequency(obj)
             af = CalcAlleleFrequencies_(obj.GENO,obj.nSamples);
         end
@@ -184,6 +184,22 @@ classdef SNPLIB < handle
             S = S(2:nComponents+1,2:nComponents+1);
             U = U(:,2:nComponents+1);
             loadings = S\U';
+        end
+    end
+    methods % GWAS
+        function [betas,rho2,pvalues] = CalcCCAGWAS(obj, trait)
+            Y = trait-repmat(mean(trait,1),[obj.nSamples,1]);
+            [betas,rho2] = CalcCCAGWAS_(obj.GENO,Y,obj.nThreads);
+            nDims = size(trait,2);
+            lambda = 1-rho2;
+            t = (nDims^2-4)/(nDims^2+1-5);
+            t = sqrt(t);
+            w = obj.nSamples-(nDims+4)/2;
+            df1 = nDims;
+            df2 = w*t-nDims/2+1;
+            lambda = lambda.^(1/t);
+            F = (1-lambda)./lambda*df2/df1;
+            pvalues = fcdf(F,df1,df2,'upper');
         end
     end
     methods

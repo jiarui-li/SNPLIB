@@ -134,99 +134,66 @@ void CalcLogisticGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
   }
 }
 void CalcCCAThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
-                   const double *trait, size_t num_dims, double *betas,
-                   double *stats) {
-  auto *Y = new double[num_samples * num_dims];
+                   const double *U, const double *S, const double *VT,
+                   size_t num_dims, double *betas, double *rho2) {
   auto *geno_d = new double[num_samples];
-  auto *mask_d = new double[num_samples];
-  auto *Sigma = new double[num_dims * num_dims];
-  auto *d = new double[num_dims];
-  auto *Rho = new double[num_dims];
+  auto *tmp = new double[num_dims];
   auto m = static_cast<int32_t>(num_samples);
   auto n = static_cast<int32_t>(num_dims);
-  int32_t lwork;
-  int32_t liwork;
-  double w;
-  LAPACKE_dsyevd_work(LAPACK_COL_MAJOR, 'V', 'U', n, nullptr, n, nullptr, &w,
-                      -1, &liwork, -1);
-  lwork = static_cast<int32_t>(w);
-  auto *work = new double[lwork];
-  auto *iwork = new int32_t[liwork];
   auto local_ind = ind++;
   while (local_ind < num_snps) {
     SNP snp(geno, num_samples);
     snp += local_ind;
-    snp.UnpackGeno(geno_table, mask_table, geno_d, mask_d);
-    auto *tmp_b = betas + local_ind * num_dims;
-    auto alpha = std::accumulate(mask_d, mask_d + num_samples, 0.0);
-    for (size_t i = 0; i < num_dims; ++i) {
-      auto *tmp_t = trait + i * num_samples;
-      auto *tmp_y = Y + i * num_samples;
-      for (size_t j = 0; j < num_samples; ++j) {
-        tmp_y[j] = tmp_t[j] * mask_d[j];
-      }
-      auto mu = std::accumulate(tmp_y, tmp_y + num_samples, 0.0) / alpha;
-      for (size_t j = 0; j < num_samples; ++j) {
-        tmp_y[j] -= mu;
-      }
-    }
-    auto mu = std::accumulate(geno_d, geno_d + num_samples, 0.0) / alpha;
+    snp.UnpackGeno(geno_table, geno_d);
+    auto mu = std::accumulate(geno_d, geno_d + num_samples, 0.0);
+    mu /= num_samples;
     for (size_t i = 0; i < num_samples; ++i) {
       geno_d[i] -= mu;
     }
-    auto a = 1.0 / (alpha - 1.0);
-    double var_g = 0.0;
-    for (size_t i = 0; i < num_samples; ++i) {
-      var_g += geno_d[i] * geno_d[i];
-    }
-    var_g *= a;
-    cblas_dsyrk(CblasColMajor, CblasLower, CblasTrans, n, m, a, Y, m, 0.0,
-                Sigma, n);
-    cblas_dgemv(CblasColMajor, CblasTrans, m, n, a, Y, m, geno_d, 1, 0.0, Rho,
+    cblas_dgemv(CblasColMajor, CblasTrans, m, n, 1.0, U, m, geno_d, 1, 0.0, tmp,
                 1);
-    LAPACKE_dsyevd_work(LAPACK_COL_MAJOR, 'V', 'L', n, Sigma, n, d, work, lwork,
-                        iwork, liwork);
-    cblas_dgemv(CblasColMajor, CblasTrans, n, n, 1.0, Sigma, n, Rho, 1, 0.0,
-                tmp_b, 1);
+    double a = 0.0;
     for (size_t i = 0; i < num_dims; ++i) {
-      tmp_b[i] /= d[i];
+      a += tmp[i] * tmp[i];
     }
-    cblas_dgemv(CblasColMajor, CblasNoTrans, n, n, 1.0, Sigma, n, tmp_b, 1, 0.0,
-                geno_d, 1);
-    double rho = 0.0;
+    double b = 0.0;
+    for (size_t i = 0; i < num_samples; ++i) {
+      b += geno_d[i] * geno_d[i];
+    }
+    rho2[local_ind] = a / b;
     for (size_t i = 0; i < num_dims; ++i) {
-      rho += geno_d[i] * Rho[i];
+      tmp[i] /= S[i];
     }
-    stats[local_ind] = -alpha * std::log(1 - rho);
-    double norm = 0.0;
-    for (size_t i = 0; i < num_dims; ++i) {
-      norm += geno_d[i] * geno_d[i];
-    }
-    norm = std::sqrt(norm);
-    for (size_t i = 0; i < num_dims; ++i) {
-      tmp_b[i] /= norm;
-    }
+    auto *tmp_beta = betas + local_ind * num_dims;
+    cblas_dgemv(CblasColMajor, CblasTrans, n, n, 1.0, VT, n, tmp, 1, 0.0,
+                tmp_beta, 1);
     local_ind = ind++;
   }
-  delete[] Y;
   delete[] geno_d;
-  delete[] mask_d;
-  delete[] work;
-  delete[] iwork;
 }
 void CalcCCAGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
                  const double *trait, size_t num_dims, double *betas,
-                 double *stats, size_t num_threads) {
+                 double *rho2, size_t num_threads) {
   std::vector<std::thread> workers;
+  double *U = new double[num_samples * num_dims];
+  double *S = new double[num_dims];
+  double *VT = new double[num_dims * num_dims];
+  std::copy(trait, trait + num_samples * num_dims, U);
+  auto m = static_cast<int32_t>(num_samples);
+  auto n = static_cast<int32_t>(num_dims);
+  LAPACKE_dgesdd(LAPACK_COL_MAJOR, 'O', m, n, U, m, S, nullptr, m, VT, n);
   set_num_threads(1);
   ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {
-    workers.emplace_back(CalcCCAThread, geno, num_samples, num_snps, trait,
-                         num_dims, betas, stats);
+    workers.emplace_back(CalcCCAThread, geno, num_samples, num_snps, U, S, VT,
+                         num_dims, betas, rho2);
   }
   for (auto &&iter : workers) {
     iter.join();
   }
+  delete[] U;
+  delete[] S;
+  delete[] VT;
 }
 void CalcUniLMMThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
                       const double *lambda, const double *V,

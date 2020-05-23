@@ -393,14 +393,14 @@ std::tuple<array, array> CalcCCAGWAS(geno_t genotype, array trait,
   auto num_dims = static_cast<size_t>(trait_buf.shape[1]);
   auto *trait_ptr = reinterpret_cast<double *>(trait_buf.ptr);
   array betas(std::array<size_t, 2>{num_dims, num_snps});
-  array stats(num_snps);
+  array rho2(num_snps);
   auto betas_buf = betas.request();
   auto *betas_ptr = reinterpret_cast<double *>(betas_buf.ptr);
-  auto stats_buf = stats.request();
-  auto *stats_ptr = reinterpret_cast<double *>(stats_buf.ptr);
+  auto rho2_buf = rho2.request();
+  auto *rho2_ptr = reinterpret_cast<double *>(rho2_buf.ptr);
   snplib::CalcCCAGWAS(geno_ptr, num_samples, num_snps, trait_ptr, num_dims,
-                      betas_ptr, stats_ptr, num_threads);
-  return std::make_tuple(betas, stats);
+                      betas_ptr, rho2_ptr, num_threads);
+  return std::make_tuple(betas, rho2);
 }
 std::tuple<array, array, array> CalcUniLMMGWAS(geno_t genotype,
                                                array covariates, array trait,

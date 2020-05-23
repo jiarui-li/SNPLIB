@@ -11,7 +11,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   plhs[0] = mxCreateDoubleMatrix(num_dims, num_snps, mxREAL);
   plhs[1] = mxCreateDoubleMatrix(num_snps, 1, mxREAL);
   auto *betas = mxGetPr(plhs[0]);
-  auto *stats = mxGetPr(plhs[1]);
-  snplib::CalcCCAGWAS(geno, num_samples, num_snps, trait, num_dims, betas,
-                      stats, num_threads);
+  auto *rho2 = mxGetPr(plhs[1]);
+  snplib::CalcCCAGWAS(geno, num_samples, num_snps, trait, num_dims, betas, rho2,
+                      num_threads);
 }
