@@ -7,7 +7,7 @@ SNPLIB is a MATLAB library for Quantitative Genetics
 
 
 
-## Installation
+## Prerequisit
 
 SNPLIB is accelerated by BLAS/LAPACK compatible matrix libraries.  Before build SNPLIB, it is required to install following libraries.
 
@@ -27,17 +27,41 @@ OpenBLAS is an alternative open-source optimized math library. It is recommended
 
 It is recommend to build OpenBLAS from source following [Installation Guide](https://github.com/xianyi/OpenBLAS/wiki/Installation-Guide). It is also possible to download the [binary packages](https://sourceforge.net/projects/openblas/files/).
 
-### Build SNPLIB
+## Compiling SNPLIB
 
-SNPLIB can be built and installed on:
+SNPLIB is written in C++ and provide the interfaces for Python 3 (not 2) and MATLAB. To compile the core library of SNPLIB, a C/C++ compiler is needed. 
 
-* [Linux](docs/linux.md)
-* [Windows](docs/windows.md)
-* [OSX](docs/osx.md)
+### Python Package
 
-## Tutorial
-### MATLAB API
-### Python API
+To install Python 3 interfaces, you will need CMake. To install the Python 3 interface, type:
+
+```bash
+python setup.py install
+```
+
+The script will ask you to install SNPLIB with MKL or OpenBLAS and where they can be found. Here, using Intel MKL for example:
+
+>Use Intel MKL(m) or OpenBLAS(o)?m
+
+>The directory of Intel MKL [C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows]:
+
+
+### MATLAB Package
+
+To install the SNPLIB in MATLAB&reg;, you need first config the mex:
+
+```matlab
+mex -setup c;
+mex -setup c++;
+```
+and then
+
+```matlab
+%% using Intel MKL
+setup_mkl;
+%% using OpenBLAS
+setup_openblas;
+```
 
 ## License
 
