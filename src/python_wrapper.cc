@@ -402,6 +402,13 @@ std::tuple<array, array> CalcCCAGWAS(geno_t genotype, array trait,
                       betas_ptr, rho2_ptr, num_threads);
   return std::make_tuple(betas, rho2);
 }
+array CalcCCAReplication(geno_t genotype, array scores, array betas,
+                         size_t num_threads) {
+  auto geno_buf = genotype.request();
+  auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
+  auto num_snps = static_cast<size_t>(geno_buf.shape[1]);
+  auto scores_buf = scores.request();
+}
 std::tuple<array, array, array> CalcUniLMMGWAS(geno_t genotype,
                                                array covariates, array trait,
                                                array lambda, array V,

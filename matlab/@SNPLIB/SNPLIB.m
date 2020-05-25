@@ -201,6 +201,10 @@ classdef SNPLIB < handle
             F = (1-lambda)./lambda*df2/df1;
             pvalues = fcdf(F,df1,df2,'upper');
         end
+        function [rho,pvalues] = CalcCCAReplication(obj,scores,betas)
+            rho = CalcCCAReplication_(obj.GENO,scores,betas,obj.nThreads);
+            pvalues = tcdf(abs(rho),obj.nSamples-2,'upper')*2;
+        end
     end
     methods
         function [SNPs, Samples] = importPLINKDATA(obj,bfile)

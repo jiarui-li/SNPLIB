@@ -196,6 +196,59 @@ void CalcCCAGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
   delete[] S;
   delete[] VT;
 }
+void CCAReplicationThread(const uint8_t *geno, size_t num_samples,
+                          size_t num_snps, const double *scores,
+                          const double *betas, size_t num_dims, double *rho) {
+  auto *geno_d = new double[num_samples];
+  auto *trait = new double[num_samples];
+  auto *tmp = new double[num_dims];
+  auto m = static_cast<int32_t>(num_samples);
+  auto n = static_cast<int32_t>(num_dims);
+  auto local_ind = ind++;
+  while (local_ind < num_snps) {
+    SNP snp(geno, num_samples);
+    snp += local_ind;
+    snp.UnpackGeno(geno_table, geno_d);
+    auto mu = std::accumulate(geno_d, geno_d + num_samples, 0.0);
+    mu /= num_samples;
+    for (size_t i = 0; i < num_samples; ++i) {
+      geno_d[i] -= mu;
+    }
+    auto *beta = betas + local_ind * num_dims;
+    cblas_dgemv(CblasColMajor, CblasNoTrans, m, n, 1.0, scores, m, beta, 1, 0.0,
+                trait, 1);
+    mu = std::accumulate(trait, trait + num_samples, 0.0);
+    mu /= num_samples;
+    double cov = 0.0;
+    double var_g = 0.0;
+    double var_t = 0.0;
+    for (size_t i = 0; i < num_samples; ++i) {
+      trait[i] -= mu;
+      cov += geno_d[i] * trait[i];
+      var_g += geno_d[i] * geno_d[i];
+      var_t += trait[i] * trait[i];
+    }
+    rho[local_ind] = cov / std::sqrt(var_g * var_t);
+    local_ind = ind++;
+  }
+  delete[] geno_d;
+  delete[] trait;
+}
+void CalcCCAReplication(const uint8_t *geno, size_t num_samples,
+                        size_t num_snps, const double *scores,
+                        const double *betas, size_t num_dims, double *rho,
+                        size_t num_threads) {
+  std::vector<std::thread> workers;
+  set_num_threads(1);
+  ind = 0;
+  for (size_t i = 0; i < num_threads; ++i) {
+    workers.emplace_back(CCAReplicationThread, geno, num_samples, num_snps,
+                         scores, betas, num_dims, betas);
+  }
+  for (auto &&iter : workers) {
+    iter.join();
+  }
+}
 void CalcUniLMMThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
                       const double *lambda, const double *V,
                       const double *covariates, size_t num_covariates,
