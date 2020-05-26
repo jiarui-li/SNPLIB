@@ -86,14 +86,14 @@ classdef SNPLIB < handle
         function matrix = CalcIBSMatrix(obj)
             matrix = CalcIBSMatrix_(obj.GENO,obj.nSamples,obj.nThreads);
         end
-        function matrix = CalcKING(obj)
-            matrix = CalcKING_(obj.GENO,obj.nSamples,obj.nThreads);
+        function matrix = CalcKINGMatrix(obj)
+            matrix = CalcKINGMatrix_(obj.GENO,obj.nSamples,obj.nThreads);
         end
         function ind = FindUnrelated(obj, threshold)
             if nargin<2
                 threshold = 0.044;
             end
-            matrix = obj.CalcKING();
+            matrix = obj.CalcKINGMatrix();
             ind = FindUnrelatedGroup_(matrix, threshold);
         end
         function [matrix, gcta_diag, p_values] = CalcAdjustedGRMMatrix(obj,scores,check)
@@ -203,6 +203,7 @@ classdef SNPLIB < handle
         end
         function [rho,pvalues] = CalcCCAReplication(obj,scores,betas)
             rho = CalcCCAReplication_(obj.GENO,scores,betas,obj.nThreads);
+            rho = rho./sqrt(1-rho.^2);
             pvalues = tcdf(abs(rho),obj.nSamples-2,'upper')*2;
         end
     end

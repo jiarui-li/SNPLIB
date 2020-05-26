@@ -243,7 +243,7 @@ void CalcCCAReplication(const uint8_t *geno, size_t num_samples,
   ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CCAReplicationThread, geno, num_samples, num_snps,
-                         scores, betas, num_dims, betas);
+                         scores, betas, num_dims, rho);
   }
   for (auto &&iter : workers) {
     iter.join();
