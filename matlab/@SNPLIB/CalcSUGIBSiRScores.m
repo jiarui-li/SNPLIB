@@ -4,7 +4,7 @@ function scores = CalcSUGIBSiRScores(obj,nComp, nParts)
 if nargin < 3
     nParts = 10;
 end
-ind_u = obj.FindUnrelatedGroup()';
+ind_u = obj.FindUnrelated();
 geno_u = Keep_(obj.GENO,obj.nSamples,int32(ind_u-1));
 nSamples_u = length(ind_u);
 ibs = CalcIBSMatrix_(geno_u,nSamples_u,obj.nThreads);

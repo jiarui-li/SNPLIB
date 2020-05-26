@@ -262,7 +262,8 @@ classdef SNPLIB < handle
             FlipGeno_(obj.GENO,obj.nSamples,int32(ind-1));
         end
         function keep(obj,ind)
-            Keep_(obj.GENO,obj.nSamples,int32(ind-1));
+            obj.GENO = Keep_(obj.GENO,obj.nSamples,int32(ind-1));
+            obj.nSamples = length(ind);
         end
         function geno_d = UnpackGeno(obj)
             geno_d = UnpackGeno_(obj.GENO,obj.nSamples);
