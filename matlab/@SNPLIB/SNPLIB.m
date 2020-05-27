@@ -203,8 +203,8 @@ classdef SNPLIB < handle
         end
         function [rho,pvalues] = CalcCCAReplication(obj,scores,betas)
             rho = CalcCCAReplication_(obj.GENO,scores,betas,obj.nThreads);
-            rho = rho./sqrt(1-rho.^2);
-            pvalues = tcdf(abs(rho),obj.nSamples-2,'upper')*2;
+            t = rho.*sqrt((obj.nSamples-2)./(1-rho.^2));
+            pvalues = tcdf(abs(t),obj.nSamples-2,'upper')*2;
         end
     end
     methods
