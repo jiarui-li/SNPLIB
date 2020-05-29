@@ -25,7 +25,7 @@ void CalcCCAGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
                  double *stats, size_t num_threads);
 void CalcCCAReplication(const uint8_t *geno, size_t num_samples,
                         size_t num_snps, const double *scores,
-                        const double *betas, size_t num_dims, double *stats,
+                        const double *betas, size_t num_dims, double *rho,
                         size_t num_threads);
 void CalcUniLMMGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
                     const double *lambda, const double *V,

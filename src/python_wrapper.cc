@@ -408,6 +408,17 @@ array CalcCCAReplication(geno_t genotype, array scores, array betas,
   auto *geno_ptr = reinterpret_cast<uint8_t *>(geno_buf.ptr);
   auto num_snps = static_cast<size_t>(geno_buf.shape[1]);
   auto scores_buf = scores.request();
+  auto *scores_ptr = reinterpret_cast<double *>(scores_buf.ptr);
+  auto num_samples = static_cast<size_t>(scores_buf.shape[0]);
+  auto num_dims = static_cast<size_t>(scores_buf.shape[1]);
+  auto betas_buf = betas.request();
+  auto *betas_ptr = reinterpret_cast<double *>(betas_buf.ptr);
+  array rho(num_snps);
+  auto rho_buf = rho.request();
+  auto *rho_ptr = reinterpret_cast<double *>(rho_buf.ptr);
+  snplib::CalcCCAReplication(geno_ptr, num_samples, num_snps, scores_ptr,
+                             betas_ptr, num_dims, rho_ptr, num_threads);
+  return rho;
 }
 std::tuple<array, array, array> CalcUniLMMGWAS(geno_t genotype,
                                                array covariates, array trait,
@@ -450,7 +461,7 @@ array UpdateAf(array aaf, size_t num_pops, size_t num_generations,
   auto af_buf = af.request();
   auto *af_ptr = reinterpret_cast<double *>(af_buf.ptr);
   snplib::UpdateAf(aaf_ptr, num_pops, num_snps, num_generations,
-                   effective_sample_size, af_ptr);
+                   2 * effective_sample_size, af_ptr);
   return af;
 }
 geno_t GenerateIndividuals(array af) {

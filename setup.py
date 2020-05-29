@@ -40,7 +40,8 @@ class CMakeBuild(build_ext):
             extdir += os.path.sep
 
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-                      '-DPYTHON_EXECUTABLE=' + sys.executable]
+                      '-DPYTHON_EXECUTABLE=' + sys.executable,
+                      '-DPYTHON_ROOT=' + os.path.abspath(os.path.dirname(sys.executable))]
 
         blas_library = input('Use Intel MKL(m) or OpenBLAS(o)?')
         blas_library = blas_library.lower()[0]
