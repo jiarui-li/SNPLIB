@@ -25,8 +25,6 @@ true_grm = obj.CalcAdmixedGRMMatrix(pop_af,pop);
 grm = obj.CalcGRMMatrix();
 scores = obj.CalcSUGIBSScores(1);
 %% Simulating traits
-true_genetic_corr = zeros(num_pairs,1);
-true_env_corr = zeros(num_pairs,1);
 sim_traits = zeros(num_samples, num_traits);
 all_snps = 2:num_snps;
 snp_ind = randsample(all_snps,num_causal_snps,false);
