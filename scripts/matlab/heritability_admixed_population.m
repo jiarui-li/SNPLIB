@@ -1,7 +1,7 @@
 clear all;
 %% Simulation settings
 Fst = 0.2;
-num_generations = 200;
+num_generations = 20;
 effective_sample_size = floor(num_generations/2/(1-exp(-Fst)));
 num_snps = 100000;
 num_causal_snps = 10000;

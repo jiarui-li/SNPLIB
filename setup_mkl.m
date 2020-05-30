@@ -1,3 +1,4 @@
+clear all;close all;
 os = computer();
 install_path = [userpath,'/SNPLIB'];
 switch os

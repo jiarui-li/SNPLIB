@@ -1,7 +1,7 @@
 clear all;
 %% Simulation settings
 Fst = 0.2;
-num_generations = 200;
+num_generations = 20;
 effective_sample_size = floor(num_generations/2/(1-exp(-Fst)));
 num_snps = 100000;
 num_causal_snps = 10000;
@@ -13,12 +13,12 @@ pop_af = UpdateAf_(aaf,2,num_generations,effective_sample_size)';
 %pop_af = [pop_af,repmat(aaf(num_snps/2+1:end),[2 1])];
 pop_af(:,1) = [0.1;0.9];
 pop = zeros(num_samples, 2);
-pop(1:num_samples/2,1) = betarnd(0.1,0.1,[num_samples/2 1]);
-pop(1:num_samples/2,2) = 1- pop(1:num_samples/2,1);
-for i=1:num_samples/2
-    pop(num_samples/2+i,1) = (pop(2*(i-1)+1,1)+pop(2*i,1))/2;
-    pop(num_samples/2+i,2) = 1-pop(num_samples/2+i,1);
+pop(1:num_samples/2,1) = sort(betarnd(0.1,0.1,[num_samples/2 1]));
+for i=1:num_samples/4
+    pop(num_samples/2+2*(i-1)+1,1) = (pop(2*(i-1)+1,1)+pop(2*i,1))/2;
+    pop(num_samples/2+2*i,1) = (pop(2*(i-1)+1,1)+pop(2*i,1))/2;
 end
+pop(:,2) = 1-pop(:,1);
 af = pop(1:num_samples/2,:)*pop_af;
 %% Simulating Genotypes
 obj = SNPLIB();
@@ -29,7 +29,7 @@ GENO = [geno_p;geno_s];
 obj.CreateFromSIM(GENO,num_samples);
 true_grm = obj.CalcAdmixedGRMMatrix(pop_af,pop);
 grm = obj.CalcGRMMatrix();
-scores = obj.CalcSUGIBSScores(1);
+scores = obj.CalcSUGIBSiRScores(1);
 %% Simulating traits
 sim_traits = zeros(num_samples, num_traits);
 all_snps = 2:num_snps;
