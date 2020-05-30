@@ -3,8 +3,8 @@ clear all
 Fst = [0.001,0.005,0.01,0.05,0.1];
 num_generations = 20;
 effective_sample_size = floor(num_generations./2./(1-exp(-Fst)));
-num_snps = 10000;
-num_samples = 1000;
+num_snps = 3200;
+num_samples = 200;
 pca_corr = zeros(100,5);
 mds_corr = zeros(100,5);
 sugibs_corr = zeros(100,5);

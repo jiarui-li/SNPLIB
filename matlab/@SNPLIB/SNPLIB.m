@@ -243,17 +243,9 @@ classdef SNPLIB < handle
             L = ceil(obj.nSamples/4);
             obj.GENO = reshape(bin(4:end),[L length(REF)]);
         end
-        function GenerateIndividuals(obj, af)
-            obj.nSamples = size(af,1);
-            obj.GENO = GenerateIndividuals_(af);
-        end
-        function GenerateAdmixedIndividuals(obj, af, num_samples)
-            obj.nSamples = num_samples;
-            obj.GENO = GenerateAdmixedIndividuals_(af, num_samples);
-        end
-        function GeneratePairwiseSiblings(obj, parent_obj)
-            obj.nSamples = parent_obj.nSamples;
-            obj.GENO = GeneratePairwiseSiblings_(parent_obj.GENO,obj.nSamples);
+        function CreateFromSIM(obj,GENO,nSamples)
+            obj.GENO = GENO;
+            obj.nSamples = nSamples;
         end
         function extract(obj,ind)
             obj.GENO = obj.GENO(:,ind);

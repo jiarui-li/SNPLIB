@@ -1,13 +1,5 @@
 #include "simulations.h"
 
-namespace {
-uint8_t get(const uint8_t *geno, size_t index) {
-  auto i = index / 4;
-  auto s = index % 4;
-  return (geno[i] >> (2 * s)) & 3u;
-}
-}  // namespace
-
 namespace snplib {
 void UpdateAf(const double *aaf, size_t num_pops, size_t num_snps,
               size_t num_generations, size_t effective_sample_size,
@@ -78,22 +70,25 @@ void GeneratePairwiseSiblings(uint8_t *parent_geno, size_t num_families,
   std::bernoulli_distribution bdis(0.5);
   auto num_samples = num_families * 2;
   auto num_bytes = num_samples / 4 + (num_samples % 4 > 0u ? 1 : 0);
+  std::fill(siblings_geno, siblings_geno + num_bytes * num_snps, 0u);
   for (size_t i = 0; i < num_snps; ++i) {
+    auto *tmp_p = parent_geno + i * num_bytes;
     auto *tmp_s = siblings_geno + i * num_bytes;
     for (size_t j = 0; j < num_families; ++j) {
-      auto p1_g = get(parent_geno, 2 * i);
+      auto l = j / 2;
+      auto k = (j % 2) * 4;
+      uint8_t p1_g = (tmp_p[l] >> k) & 3u;
       p1_g = p1_g > 0u ? p1_g - 1 : 0;
-      auto p2_g = get(parent_geno, 2 * i + 1);
+      uint8_t p2_g = (tmp_p[l] >> (k + 2)) & 3u;
       p2_g = p2_g > 0u ? p2_g - 1 : 0;
-      uint8_t t =
-          p1_g == 1 ? bdis(gen) : p1_g / 2 + p2_g == 1 ? bdis(gen) : p2_g / 2;
+      uint8_t t = (p1_g == 1 ? bdis(gen) : p1_g / 2) +
+                  (p2_g == 1 ? bdis(gen) : p2_g / 2);
       t = t > 0u ? t + 1 : 0;
-      auto l = j >> 1;
-      auto k = (j & 1u) << 2;
       tmp_s[l] += t << k;
-      t = p1_g == 1 ? bdis(gen) : p1_g / 2 + p2_g == 1 ? bdis(gen) : p2_g / 2;
-      k += 2;
-      tmp_s[l] += t << k;
+      t = (p1_g == 1 ? bdis(gen) : p1_g / 2) +
+          (p2_g == 1 ? bdis(gen) : p2_g / 2);
+      t = t > 0u ? t + 1 : 0;
+      tmp_s[l] += t << (k + 2);
     }
   }
 }

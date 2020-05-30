@@ -13,13 +13,19 @@ pop_af = UpdateAf_(aaf,2,num_generations,effective_sample_size)';
 %pop_af = [pop_af,repmat(aaf(num_snps/2+1:end),[2 1])];
 pop_af(:,1) = [0.1;0.9];
 pop = zeros(num_samples, 2);
-pop(:,1) = sort(betarnd(0.1,0.1,[num_samples 1]));
-pop(:,2) = 1- pop(:,1);
-af = pop*pop_af;
+pop(1:num_samples/2,1) = betarnd(0.1,0.1,[num_samples/2 1]);
+pop(1:num_samples/2,2) = 1- pop(1:num_samples/2,1);
+for i=1:num_samples/2
+    pop(num_samples/2+i,1) = (pop(2*(i-1)+1,1)+pop(2*i,1))/2;
+    pop(num_samples/2+i,2) = 1-pop(num_samples/2+i,1);
+end
+af = pop(1:num_samples/2,:)*pop_af;
 %% Simulating Genotypes
 obj = SNPLIB();
 obj.nThreads = 4;
-GENO = GenerateIndividuals_(af);
+geno_p = GenerateIndividuals_(af);
+geno_s = GeneratePairwiseSiblings_(geno_p,num_samples/2);
+GENO = [geno_p;geno_s];
 obj.CreateFromSIM(GENO,num_samples);
 true_grm = obj.CalcAdmixedGRMMatrix(pop_af,pop);
 grm = obj.CalcGRMMatrix();
