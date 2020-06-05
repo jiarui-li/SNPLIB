@@ -30,7 +30,9 @@ mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcAdjustedG
 mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcAdmixedGRM_.cc','src/adjusted_grm.cc','src/snp.cc');
 mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcAlleleFrequencies_.cc','src/statistics.cc','src/snp.cc');
 mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcCCAGWAS_.cc','src/gwas.cc','src/snp.cc','src/uni_lmm.cc');
+mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcCCAGWASX_.cc','src/gwas.cc','src/snp.cc','src/uni_lmm.cc');
 mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcCCAReplication_.cc','src/gwas.cc','src/snp.cc','src/uni_lmm.cc');
+mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcCCAReplicationX_.cc','src/gwas.cc','src/snp.cc','src/uni_lmm.cc');
 mex(cxxoptim,'matlab/mexfiles/CalcGCTADiagonal_.cc','src/grm.cc','src/snp.cc');
 mex(cxxoptim,'matlab/mexfiles/CalcGRMMatrix_.cc','src/grm.cc','src/snp.cc');
 mex(cxxoptim,'matlab/mexfiles/CalcUGRMMatrix_.cc','src/ugrm.cc','src/snp.cc');

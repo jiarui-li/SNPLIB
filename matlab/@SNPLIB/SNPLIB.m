@@ -201,8 +201,27 @@ classdef SNPLIB < handle
             F = (1-lambda)./lambda*df2/df1;
             pvalues = fcdf(F,df1,df2,'upper');
         end
+        function [betas,rho2,pvalues] = CalcCCAGWASX(obj, trait, sex)
+            Y = trait-repmat(mean(trait,1),[obj.nSamples,1]);
+            [betas,rho2] = CalcCCAGWASX_(obj.GENO,Y,sex,obj.nThreads);
+            nDims = size(trait,2);
+            lambda = 1-rho2;
+            t = (nDims^2-4)/(nDims^2+1-5);
+            t = sqrt(t);
+            w = obj.nSamples-(nDims+4)/2;
+            df1 = nDims;
+            df2 = w*t-nDims/2+1;
+            lambda = lambda.^(1/t);
+            F = (1-lambda)./lambda*df2/df1;
+            pvalues = fcdf(F,df1,df2,'upper');
+        end
         function [rho,pvalues] = CalcCCAReplication(obj,scores,betas)
             rho = CalcCCAReplication_(obj.GENO,scores,betas,obj.nThreads);
+            t = rho.*sqrt((obj.nSamples-2)./(1-rho.^2));
+            pvalues = tcdf(t,obj.nSamples-2,'upper');
+        end
+        function [rho,pvalues] = CalcCCAReplication(obj,scores,betas,sex)
+            rho = CalcCCAReplicationX_(obj.GENO,scores,betas,sex,obj.nThreads);
             t = rho.*sqrt((obj.nSamples-2)./(1-rho.^2));
             pvalues = tcdf(t,obj.nSamples-2,'upper');
         end

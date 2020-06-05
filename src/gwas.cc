@@ -196,6 +196,73 @@ void CalcCCAGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
   delete[] S;
   delete[] VT;
 }
+void CalcCCAXThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
+                    const double *U, const double *S, const double *VT,
+                    const double *sex, size_t num_dims, double *betas,
+                    double *stats) {
+  auto *geno_d = new double[num_samples];
+  auto *tmp = new double[num_dims];
+  auto m = static_cast<int32_t>(num_samples);
+  auto n = static_cast<int32_t>(num_dims);
+  auto local_ind = ind++;
+  while (local_ind < num_snps) {
+    SNP snp(geno, num_samples);
+    snp += local_ind;
+    snp.UnpackGeno(geno_table, geno_d);
+    for (size_t i = 0; i < num_samples; ++i) {
+      geno_d[i] /= sex[i];
+    }
+    auto mu = std::accumulate(geno_d, geno_d + num_samples, 0.0);
+    mu /= num_samples;
+    for (size_t i = 0; i < num_samples; ++i) {
+      geno_d[i] -= mu;
+    }
+    cblas_dgemv(CblasColMajor, CblasTrans, m, n, 1.0, U, m, geno_d, 1, 0.0, tmp,
+                1);
+    double a = 0.0;
+    for (size_t i = 0; i < num_dims; ++i) {
+      a += tmp[i] * tmp[i];
+    }
+    double b = 0.0;
+    for (size_t i = 0; i < num_samples; ++i) {
+      b += geno_d[i] * geno_d[i];
+    }
+    rho2[local_ind] = a / b;
+    for (size_t i = 0; i < num_dims; ++i) {
+      tmp[i] /= S[i];
+    }
+    auto *tmp_beta = betas + local_ind * num_dims;
+    cblas_dgemv(CblasColMajor, CblasTrans, n, n, 1.0, VT, n, tmp, 1, 0.0,
+                tmp_beta, 1);
+    local_ind = ind++;
+  }
+  delete[] geno_d;
+}
+void CalcCCAGWASX(const uint8_t *geno, size_t num_samples, size_t num_snps,
+                  const double *trait, const double *sex, size_t num_dims,
+                  double *betas, double *rho2, size_t num_threads) {
+  std::vector<std::thread> workers;
+  set_num_threads(num_threads);
+  double *U = new double[num_samples * num_dims];
+  double *S = new double[num_dims];
+  double *VT = new double[num_dims * num_dims];
+  std::copy(trait, trait + num_samples * num_dims, U);
+  auto m = static_cast<int32_t>(num_samples);
+  auto n = static_cast<int32_t>(num_dims);
+  LAPACKE_dgesdd(LAPACK_COL_MAJOR, 'O', m, n, U, m, S, nullptr, m, VT, n);
+  set_num_threads(1);
+  ind = 0;
+  for (size_t i = 0; i < num_threads; ++i) {
+    workers.emplace_back(CalcCCAXThread, geno, num_samples, num_snps, U, S, VT,
+                         sex, num_dims, betas, rho2);
+  }
+  for (auto &&iter : workers) {
+    iter.join();
+  }
+  delete[] U;
+  delete[] S;
+  delete[] VT;
+}
 void CCAReplicationThread(const uint8_t *geno, size_t num_samples,
                           size_t num_snps, const double *scores,
                           const double *betas, size_t num_dims, double *rho) {
@@ -244,6 +311,63 @@ void CalcCCAReplication(const uint8_t *geno, size_t num_samples,
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CCAReplicationThread, geno, num_samples, num_snps,
                          scores, betas, num_dims, rho);
+  }
+  for (auto &&iter : workers) {
+    iter.join();
+  }
+}
+void CCAReplicationXThread(const uint8_t *geno, size_t num_samples,
+                           size_t num_snps, const double *scores,
+                           const double *betas, const double *sex,
+                           size_t num_dims, double *rho) {
+  auto *geno_d = new double[num_samples];
+  auto *trait = new double[num_samples];
+  auto *tmp = new double[num_dims];
+  auto m = static_cast<int32_t>(num_samples);
+  auto n = static_cast<int32_t>(num_dims);
+  auto local_ind = ind++;
+  while (local_ind < num_snps) {
+    SNP snp(geno, num_samples);
+    snp += local_ind;
+    snp.UnpackGeno(geno_table, geno_d);
+    for (size_t i = 0; i < num_samples; ++i) {
+      geno_d[i] /= sex[i];
+    }
+    auto mu = std::accumulate(geno_d, geno_d + num_samples, 0.0);
+    mu /= num_samples;
+    for (size_t i = 0; i < num_samples; ++i) {
+      geno_d[i] -= mu;
+    }
+    auto *beta = betas + local_ind * num_dims;
+    cblas_dgemv(CblasColMajor, CblasNoTrans, m, n, 1.0, scores, m, beta, 1, 0.0,
+                trait, 1);
+    mu = std::accumulate(trait, trait + num_samples, 0.0);
+    mu /= num_samples;
+    double cov = 0.0;
+    double var_g = 0.0;
+    double var_t = 0.0;
+    for (size_t i = 0; i < num_samples; ++i) {
+      trait[i] -= mu;
+      cov += geno_d[i] * trait[i];
+      var_g += geno_d[i] * geno_d[i];
+      var_t += trait[i] * trait[i];
+    }
+    rho[local_ind] = cov / std::sqrt(var_g * var_t);
+    local_ind = ind++;
+  }
+  delete[] geno_d;
+  delete[] trait;
+}
+void CalcCCAReplicationX(const uint8_t *geno, size_t num_samples,
+                         size_t num_snps, const double *scores,
+                         const double *betas, const double *sex,
+                         size_t num_dims, double *rho, size_t num_threads) {
+  std::vector<std::thread> workers;
+  set_num_threads(1);
+  ind = 0;
+  for (size_t i = 0; i < num_threads; ++i) {
+    workers.emplace_back(CCAReplicationXThread, geno, num_samples, num_snps,
+                         scores, betas, sex, num_dims, rho);
   }
   for (auto &&iter : workers) {
     iter.join();

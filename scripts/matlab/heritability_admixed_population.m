@@ -29,14 +29,23 @@ sim_traits = zeros(num_samples, num_traits);
 all_snps = 2:num_snps;
 snp_ind = randsample(all_snps,num_causal_snps,false);
 obj.extract([1,snp_ind]);
+true_causal_grm = obj.CalcAdmixedGRMMatrix(pop_af(:,[1,snp_ind]),pop);
+causal_grm = obj.CalcGRMMatrix();
 geno_d = obj.UnpackGeno();
 parfor i=1:num_traits
     random_effect = geno_d(:,2:end)*normrnd(0,1,[num_causal_snps 1]);
     env_effect = zscore(normrnd(0,1,[num_samples,1]));
-    gene_effect = zscore(random_effect)*sqrt(0.5)+zscore(geno_d(:,1))*sqrt(0.5);
+    gene_effect = zscore(random_effect)*0.7+zscore(geno_d(:,1))*0.3;
     env_effect = env_effect-dot(env_effect,gene_effect)/dot(gene_effect,gene_effect).*gene_effect;
-    sim_traits(:,i) = zscore(gene_effect)*sqrt(0.72)+zscore(env_effect)*sqrt(0.28); 
+    sim_traits(:,i) = gene_effect+zscore(env_effect)*sqrt(0.42); 
 end
 [~,h2_r_1] = CalcUniHeritability(sim_traits,[],[],grm,8);
 [h2_f_2,h2_r_2] = CalcUniHeritability(sim_traits,[],scores,grm,8);
 [h2_f,h2_r] = CalcUniHeritability(sim_traits,[],scores,true_grm,8);
+T = table(h2_r_1',h2_f_2',h2_r_2',h2_f',h2_r');
+writetable(T,'pop_results.txt');
+[~,h2_r_1] = CalcUniHeritability(sim_traits,[],[],causal_grm,8);
+[h2_f_2,h2_r_2] = CalcUniHeritability(sim_traits,[],scores,causal_grm,8);
+[h2_f,h2_r] = CalcUniHeritability(sim_traits,[],scores,true_causal_grm,8);
+T = table(h2_r_1',h2_f_2',h2_r_2',h2_f',h2_r');
+writetable(T,'pop_causal_results.txt');
