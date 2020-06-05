@@ -199,7 +199,7 @@ void CalcCCAGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcCCAXThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
                     const double *U, const double *S, const double *VT,
                     const double *sex, size_t num_dims, double *betas,
-                    double *stats) {
+                    double *rho2) {
   auto *geno_d = new double[num_samples];
   auto *tmp = new double[num_dims];
   auto m = static_cast<int32_t>(num_samples);
