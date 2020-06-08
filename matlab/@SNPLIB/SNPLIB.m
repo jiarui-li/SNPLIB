@@ -187,6 +187,12 @@ classdef SNPLIB < handle
         end
     end
     methods % GWAS
+        function [betas,pvalues] = CalcLinearGWAS(obj,trait,covariates)
+            COV = [ones(obj.nSamples,1),covariates];
+            [betas,tstats] = CalcLinearRegressionGWAS_(obj.GENO,COV,trait,obj.nThreads);
+            df = obj.nSamples-size(COV,2);
+            pvalues = 2*tcdf(-abs(tstats),df);
+        end
         function [betas,rho2,pvalues] = CalcCCAGWAS(obj, trait)
             Y = trait-repmat(mean(trait,1),[obj.nSamples,1]);
             [betas,rho2] = CalcCCAGWAS_(obj.GENO,Y,obj.nThreads);
@@ -220,7 +226,7 @@ classdef SNPLIB < handle
             t = rho.*sqrt((obj.nSamples-2)./(1-rho.^2));
             pvalues = tcdf(t,obj.nSamples-2,'upper');
         end
-        function [rho,pvalues] = CalcCCAReplication(obj,scores,betas,sex)
+        function [rho,pvalues] = CalcCCAReplicationX(obj,scores,betas,sex)
             rho = CalcCCAReplicationX_(obj.GENO,scores,betas,sex,obj.nThreads);
             t = rho.*sqrt((obj.nSamples-2)./(1-rho.^2));
             pvalues = tcdf(t,obj.nSamples-2,'upper');
