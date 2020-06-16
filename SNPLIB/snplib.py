@@ -301,3 +301,18 @@ class SNPLIB:
         df = len(trait)-covariates.shape[1]
         pvalues = t.cdf(stats, df=df)
         return betas, pvalues
+
+    def CalcCCAGWAS(self, trait):
+        Y = trait - trait.mean(axis=0)
+        betas, rho2 = lib.CalcCCAGWAS(self.GENO, Y, self.nThreads)
+        nDims = trait.shape[1]
+        t = (nDims**2-4)/(nDims**2+1-5)
+        Lambda = 1.0 - rho2
+        t = np.sqrt(t)
+        w = self.nSamples - (nDims+4)/2
+        df1 = nDims
+        df2 = w*t-nDims/2+1
+        Lambda = np.power(Lambda, 1.0/t)
+        F = (1-Lambda)/Lambda*df2/df1
+        pvalues = f.cdf(F, dfn=df2, dfd=df1)
+        return betas, rho2, pvalues
