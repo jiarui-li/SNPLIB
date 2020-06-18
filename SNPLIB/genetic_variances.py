@@ -1,3 +1,13 @@
+"""Genetic Variances Components Module
+
+This module contains methods to estimate the genetic variance components in uni- and multi-variate linear mixed models.
+
+Example
+-------
+
+Notes
+-----
+"""
 import math
 import re
 import numpy as np

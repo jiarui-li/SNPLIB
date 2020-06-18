@@ -1,3 +1,13 @@
+"""SNPLIB class Module
+
+This module contains the definition of SNPLIB class and some supportive methods.
+
+Example
+-------
+
+Notes
+-----
+"""
 import math
 import re
 import numpy as np
@@ -33,28 +43,62 @@ def UpdateAf(aaf, num_pops, num_generations, effective_sample_size):
 
 
 class SNPLIB:
+    """The SNPLIB class stores the genotype data in plink binary format and provides methods analyzing genotype data
+
+    Attributes
+    ----------
+    nThreads : int
+        Number of threads used for computation
+    SNPs : :obj:`pandas.DataFrame`, optional
+        `pandas.DataFrame` of SNPs' information imported from plink .bim file
+    Samples : :obj:`pandas.DataFrame`, optional
+        `pandas.DataFrame` of Samples' information imported from plink .fam file
+    """
+
     def __init__(self, nThreads=cpu_count()//2):
+        """Constructor function
+
+        Parameters
+        ----------
+        nThreads : int, optional
+            Number of threads used for computation
+
+        """
         self.nThreads = nThreads
         self.SNPs = []
         self.Samples = []
 
     def importPLINKDATA(self, bfile):
+        """Import plink binary fileset
+
+        Parameters
+        ----------
+        bfile : str
+            The name of plink binary fileset
+
+        """
         filename = bfile + '.bim'
-        SNPs = pd.read_table(
+        self.SNPs = pd.read_table(
             bfile+'.bim', sep=None, names=['CHR', 'RSID', 'Cm', 'POS', 'ALT', 'REF'], engine='python')
-        Samples = pd.read_table(bfile+'.fam', sep=None,
-                                names=['FID', 'IID', 'PID', 'MID', 'Sex', 'Pheno'], engine='python')
-        self.nSNPs = SNPs.shape[0]
-        self.nSamples = Samples.shape[0]
+        self.Samples = pd.read_table(bfile+'.fam', sep=None,
+                                     names=['FID', 'IID', 'PID', 'MID', 'Sex', 'Pheno'], engine='python')
+        self.nSNPs = self.SNPs.shape[0]
+        self.nSamples = self.Samples.shape[0]
         filename = bfile + '.bed'
         num_bytes = math.ceil(self.nSamples / 4.0)
         GENO = np.fromfile(filename, dtype=np.uint8, count=-1)
         GENO = GENO[3:]
         self.GENO = np.reshape(GENO, (num_bytes, - 1), order='F')
-        return SNPs, Samples
 
     # Simulations
     def GenerateIndividuals(self, af):
+        """Simulate the genotypes according to the individual allele frequencies
+
+        Parameters
+        ----------
+        af : ndarray
+            A `ndarray` matrix contains the individual allele frequencies, with shape of  ``(num_samples, num_snps)``
+        """
         self.nSamples = af.shape[0]
         self.nSNPs = af.shape[1]
         self.GENO = lib.GenerateIndividuals(af)
