@@ -37,7 +37,12 @@ extensions = [
 
 # Autodoc settings
 
-autodoc_mock_imports = ["_SNPLIB"]
+autodoc_mock_imports = [
+    "_SNPLIB",
+    "numpy",
+    "pandas",
+    "scipy"
+]
 
 # Napoleon settings
 napoleon_google_docstring = True
