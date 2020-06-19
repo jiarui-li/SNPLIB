@@ -12,7 +12,7 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../SNPLIB/'))
+sys.path.insert(0, os.path.abspath('../../SNPLIB'))
 
 
 # -- Project information -----------------------------------------------------
@@ -34,6 +34,10 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon'
 ]
+
+# Autodoc settings
+
+autodoc_mock_imports = ["_SNPLIB"]
 
 # Napoleon settings
 napoleon_google_docstring = True
