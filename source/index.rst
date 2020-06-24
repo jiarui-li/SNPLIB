@@ -10,7 +10,8 @@ Welcome to SNPLIB's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   modules
+   installation
+   SNPLIB
 
 
 
