@@ -116,9 +116,23 @@ class SNPLIB:
 
     # Data manage
     def UnpackGeno(self):
+        """Unpack the plink binary format into a double matrix
+
+        Returns
+        -------
+        `ndarray`
+            A `ndarray` matrix contains the individual genotypes
+        """
         return lib.UnpackGeno(self.GENO, self.nSamples)
 
     def Keep(self, index):
+        """Keep the individuals listed in the ``index``, same as the plink option --keep
+
+        Returns
+        -------
+        `SNPLIB`
+            A `SNPLIB` object with the individuals in ``index``
+        """
         result = SNPLIB(self.nThreads)
         result.nSamples = len(index)
         result.nSNPs = deepcopy(self.nSNPs)
