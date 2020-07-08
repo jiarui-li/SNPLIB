@@ -1,7 +1,9 @@
 #ifndef _SNPLIB_SRC_DISTANCES_PCA_H_
 #define _SNPLIB_SRC_DISTANCES_PCA_H_
 
+#include <atomic>
 #include <cmath>
+#include <numeric>
 #include <thread>
 #include <vector>
 

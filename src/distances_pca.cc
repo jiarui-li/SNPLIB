@@ -1,39 +1,63 @@
 #include "distances_pca.h"
 
 namespace {
-void CalcPairwiseDistances(const double *traits, size_t num_samples,
-                           size_t num_traits, size_t num_dims, size_t start_i,
-                           size_t start_j, size_t num_pairs,
-                           double *distances) {
-  auto ii = start_i;
-  auto jj = start_j;
-  for (size_t l = 0; l < num_pairs; ++l) {
-    auto *traits_i = traits + ii * num_dims * num_samples;
-    auto *traits_j = traits + jj * num_dims * num_samples;
-    auto *dist_ij = distances + l * num_samples;
-    for (size_t i = 0; i < num_samples; ++i) {
-      double dist = 0.0;
-      for (size_t j = 0; j < num_dims; ++j) {
-        auto diff =
-            traits_i[j * num_samples + i] - traits_j[j * num_samples + i];
-        dist += diff * diff;
-      }
-      dist_ij[i] = std::sqrt(dist);
-    }
-    jj++;
-    if (jj >= num_traits) {
-      ii++;
-      jj = ii + 1;
+std::atomic_size_t ind;
+void CalcDistances(const double *traits, size_t num_samples, size_t num_dims,
+                   size_t ind_i, size_t ind_j, double *distances) {
+  auto *traits_i = traits + ind_i * num_dims * num_samples;
+  auto *traits_j = traits + ind_j * num_dims * num_samples;
+  std::fill(distances, distances + num_samples, 0.0);
+  for (size_t i = 0; i < num_dims; ++i) {
+    auto *tmp_i = traits_i + i * num_samples;
+    auto *tmp_j = traits_j + i * num_samples;
+    for (size_t j = 0; j < num_samples; ++j) {
+      distances[j] += (tmp_i[j] - tmp_j[j]) * (tmp_i[j] - tmp_j[j]);
     }
   }
+  for (size_t i = 0; i < num_samples; ++i) {
+    distances[i] = std::sqrt(distances[i]);
+  }
 }
-void CalcDistancesCOVThread() {}
+void CalcDistancesCOVThread(const double *traits, size_t num_samples,
+                            size_t num_traits, size_t num_dims, double *cov) {
+  size_t local_ind = ind++;
+  size_t local_i = 0;
+  size_t local_j = 0;
+  while (local_ind > 0) {
+    local_ind -= num_traits - local_i;
+    local_i++;
+  }
+  local_i--;
+  local_j = num_traits + local_ind - 1;
+  std::fill(cov, cov + num_samples * num_samples, 0.0);
+  auto *dist = new double[num_samples];
+  auto m = static_cast<int32_t>(num_samples);
+  while (local_i < num_traits) {
+    double mu = std::accumulate(dist, dist + num_samples, 0.0);
+    mu /= num_samples;
+    for (size_t i = 0; i < num_samples; ++i) {
+      dist[i] -= mu;
+    }
+    cblas_dsyr(CblasColMajor, CblasLower, m, 1.0, dist, 1, cov, m);
+    local_ind = ind++;
+    local_i = 0;
+    while (local_ind > 0) {
+      local_ind -= num_traits - local_i;
+      local_i++;
+    }
+    local_i--;
+    local_j = num_traits + local_ind - 1;
+  }
+  delete[] dist;
+}
 }  // namespace
 
 namespace snplib {
 void CalcDistancesPCA(const double *traits, size_t num_samples,
                       size_t num_traits, size_t num_dims, size_t num_components,
                       double *scores, double *vars, double *loadings,
-                      size_t num_threads) {}
+                      size_t num_threads) {
+  ind = 1;
+}
 
 }  // namespace snplib
