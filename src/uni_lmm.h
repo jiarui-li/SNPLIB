@@ -50,7 +50,7 @@ class UniLMM {
   void UpdateVars(double a);
   void CalcRes(double *res);
   void CalcBeta(double *beta);
-  std::array<double, 3> CalcFTest();
+  std::array<double, 4> CalcFTest();
   const std::array<double, 2> &GetVars() const { return vars_; }
 };
 }  // namespace snplib

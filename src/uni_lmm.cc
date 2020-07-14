@@ -193,7 +193,7 @@ void UniLMM::CalcBeta(double *beta) {
   LAPACKE_dtrtrs(LAPACK_COL_MAJOR, 'U', 'N', 'N', n, 1, Q, m, t, m);
   std::copy(t, t + num_covariates_, beta);
 }
-std::array<double, 3> UniLMM::CalcFTest() {
+std::array<double, 4> UniLMM::CalcFTest() {
   double v_e = vars_[0] * vars_[0];
   double v_g = vars_[1] * vars_[1];
   for (size_t i = 0; i < num_samples_; ++i) {
@@ -234,6 +234,6 @@ std::array<double, 3> UniLMM::CalcFTest() {
               (g_e * g_e * hessian_[2] + g_g * g_g * hessian_[0] -
                2.0 * g_e * g_g * hessian_[1]);
   df *= (hessian_[0] * hessian_[2] - hessian_[1] * hessian_[1]);
-  return std::array<double, 3>{beta, fstat, df};
+  return std::array<double, 4>{beta, fstat, df, 1.0 / rr};
 }
 }  // namespace snplib

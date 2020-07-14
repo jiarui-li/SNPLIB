@@ -23,22 +23,20 @@ void CalcLogisticGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcCCAGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
                  const double *trait, size_t num_dims, double *betas,
                  double *rho2, size_t num_threads);
-void CalcCCAGWASX(const uint8_t *geno, size_t num_samples, size_t num_snps,
-                  const double *trait, const double *sex, size_t num_dims,
-                  double *betas, double *rho2, size_t num_threads);
 void CalcCCAReplication(const uint8_t *geno, size_t num_samples,
                         size_t num_snps, const double *scores,
                         const double *betas, size_t num_dims, double *rho,
                         size_t num_threads);
-void CalcCCAReplicationX(const uint8_t *geno, size_t num_samples,
-                         size_t num_snps, const double *scores,
-                         const double *betas, const double *sex,
-                         size_t num_dims, double *rho, size_t num_threads);
 void CalcUniLMMGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
                     const double *lambda, const double *V,
                     const double *covariates, size_t num_covariates,
                     const double *trait, double *betas, double *fstats,
                     double *dfs, size_t num_threads);
+void CalcCCALMM(const uint8_t *geno, size_t num_samples, size_t num_snps,
+                const double *lambda, const double *V, const double *covariates,
+                size_t num_covariates, const double *scores, size_t num_dims,
+                const double *cca_betas, double *betas, double *fstats,
+                double *dfs, double *se, size_t num_threads);
 }  // namespace snplib
 
 #endif  // SNPLIB_SRC_GWAS_H_
