@@ -212,6 +212,12 @@ classdef SNPLIB < handle
             t = rho.*sqrt((obj.nSamples-2)./(1-rho.^2));
             pvalues = tcdf(t,obj.nSamples-2,'upper');
         end
+        function [betas,se,pvalues] = CalcCCALMM(obj,trait,covariates,grm,cca_betas)
+            [V,D] = eig(grm,'vector');
+            cov = V'*[ones(obj.nSamples,1),covariates];
+            [betas,dfs,se] = CalcCCALMM_(obj.GENO,cov,trait,D,V,cca_betas,obj.nThreads);
+            pvalues = 1-2*tcdf(abs(betas./se),dfs,'upper');                            
+        end
     end
     methods
         function [SNPs, Samples] = importPLINKDATA(obj,bfile)

@@ -253,8 +253,8 @@ void CalcCCAReplication(const uint8_t *geno, size_t num_samples,
 void CalcUniLMMThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
                       const double *lambda, const double *V,
                       const double *covariates, size_t num_covariates,
-                      const double *trait, double *betas, double *fstats,
-                      double *dfs) {
+                      const double *trait, double *betas, double *dfs,
+                      double *se) {
   auto *cov = new double[(num_covariates + 1) * num_samples];
   std::copy(covariates, covariates + num_samples * num_covariates, cov);
   UniLMM worker(lambda, cov, num_samples, num_covariates + 1);
@@ -292,8 +292,8 @@ void CalcUniLMMThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
     worker.UpdateHessian();
     auto result = worker.CalcFTest();
     betas[local_ind] = result[0];
-    fstats[local_ind] = result[1];
-    dfs[local_ind] = result[2];
+    dfs[local_ind] = result[1];
+    se[local_ind] = result[2];
     local_ind = ind++;
   }
   delete[] cov;
@@ -302,15 +302,14 @@ void CalcUniLMMThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcUniLMMGWAS(const uint8_t *geno, size_t num_samples, size_t num_snps,
                     const double *lambda, const double *V,
                     const double *covariates, size_t num_covariates,
-                    const double *trait, double *betas, double *fstats,
-                    double *dfs, size_t num_threads) {
+                    const double *trait, double *betas, double *dfs, double *se,
+                    size_t num_threads) {
   std::vector<std::thread> workers;
   set_num_threads(1);
   ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CalcUniLMMThread, geno, num_samples, num_snps, lambda,
-                         V, covariates, num_covariates, trait, betas, fstats,
-                         dfs);
+                         V, covariates, num_covariates, trait, betas, dfs, se);
   }
   for (auto &&iter : workers) {
     iter.join();
@@ -320,8 +319,8 @@ void CalcCCALMMThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
                       const double *lambda, const double *V,
                       const double *covariates, size_t num_covariates,
                       const double *scores, size_t num_dims,
-                      const double *cca_betas, double *betas, double *fstats,
-                      double *dfs, double *se) {
+                      const double *cca_betas, double *betas, double *dfs,
+                      double *se) {
   auto *cov = new double[(num_covariates + 1) * num_samples];
   std::copy(covariates, covariates + num_samples * num_covariates, cov);
   UniLMM worker(lambda, cov, num_samples, num_covariates + 1);
@@ -366,8 +365,8 @@ void CalcCCALMMThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
     worker.UpdateHessian();
     auto result = worker.CalcFTest();
     betas[local_ind] = result[0];
-    fstats[local_ind] = result[1];
-    dfs[local_ind] = result[2];
+    dfs[local_ind] = result[1];
+    se[local_ind] = result[2];
     local_ind = ind++;
   }
   delete[] cov;
@@ -377,15 +376,15 @@ void CalcCCALMMThread(const uint8_t *geno, size_t num_samples, size_t num_snps,
 void CalcCCALMM(const uint8_t *geno, size_t num_samples, size_t num_snps,
                 const double *lambda, const double *V, const double *covariates,
                 size_t num_covariates, const double *scores, size_t num_dims,
-                const double *cca_betas, double *betas, double *fstats,
-                double *dfs, double *se, size_t num_threads) {
+                const double *cca_betas, double *betas, double *dfs, double *se,
+                size_t num_threads) {
   std::vector<std::thread> workers;
   set_num_threads(1);
   ind = 0;
   for (size_t i = 0; i < num_threads; ++i) {
     workers.emplace_back(CalcCCALMMThread, geno, num_samples, num_snps, lambda,
                          V, covariates, num_covariates, scores, num_dims,
-                         cca_betas, betas, fstats, dfs, se);
+                         cca_betas, betas, dfs, se);
   }
   for (auto &&iter : workers) {
     iter.join();

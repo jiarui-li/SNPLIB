@@ -193,7 +193,7 @@ void UniLMM::CalcBeta(double *beta) {
   LAPACKE_dtrtrs(LAPACK_COL_MAJOR, 'U', 'N', 'N', n, 1, Q, m, t, m);
   std::copy(t, t + num_covariates_, beta);
 }
-std::array<double, 4> UniLMM::CalcFTest() {
+std::array<double, 3> UniLMM::CalcFTest() {
   double v_e = vars_[0] * vars_[0];
   double v_g = vars_[1] * vars_[1];
   for (size_t i = 0; i < num_samples_; ++i) {
@@ -214,26 +214,27 @@ std::array<double, 4> UniLMM::CalcFTest() {
                       work, lwork);
   LAPACKE_dtrtrs(LAPACK_COL_MAJOR, 'U', 'N', 'N', n, 1, Q, m, t, m);
   double beta = t[num_covariates_ - 1];
-  double fstat = beta * beta * rr * rr;
   LAPACKE_dorgqr_work(LAPACK_COL_MAJOR, m, n, n, Q, m, tau, work, lwork);
   auto *q_n = Q + (num_covariates_ - 1) * num_samples_;
+  for (size_t i = 0; i < num_samples_; ++i) {
+    q_n[i] /= h[i];
+  }
   double g_e = 0.0;
   for (size_t i = 0; i < num_samples_; ++i) {
-    g_e += q_n[i] * q_n[i] / h[i] / h[i];
+    g_e += q_n[i] * q_n[i];
   }
   g_e /= rr * rr;
+  g_e *= 2.0 * vars_[0];
   double g_g = 0.0;
   for (size_t i = 0; i < num_samples_; ++i) {
-    g_g += lambda_[i] * q_n[i] * q_n[i] / h[i] / h[i];
+    g_g += lambda_[i] * q_n[i] * q_n[i];
   }
   g_g /= rr * rr;
-  hessian_[0] /= 4.0 * vars_[0] * vars_[0];
-  hessian_[1] /= 4.0 * vars_[1] * vars_[0];
-  hessian_[2] /= 4.0 * vars_[1] * vars_[1];
-  double df = 2.0 / std::pow(rr, 4) /
-              (g_e * g_e * hessian_[2] + g_g * g_g * hessian_[0] -
-               2.0 * g_e * g_g * hessian_[1]);
-  df *= (hessian_[0] * hessian_[2] - hessian_[1] * hessian_[1]);
-  return std::array<double, 4>{beta, fstat, df, 1.0 / rr};
+  g_g *= 2.0 * vars_[1];
+  double df = 2.0 * (hessian_[0] * hessian_[2] - hessian_[1] * hessian_[1]) /
+              std::pow(rr, 4);
+  df /= g_e * g_e * hessian_[2] + g_g * g_g * hessian_[0] -
+        2.0 * g_e * g_g * hessian_[1];
+  return std::array<double, 3>{beta, df, 1.0 / rr};
 }
 }  // namespace snplib
