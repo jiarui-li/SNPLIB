@@ -139,7 +139,7 @@ void CalcLDscoresThread(const uint8_t *geno, const int32_t *bp,
       first_ind++;
     }
     size_t last_ind = first_ind;
-    while ((bp[last_ind] <= upper) && (last_ind <= num_snps)) {
+    while ((bp[last_ind] <= upper) && (last_ind < num_snps)) {
       last_ind++;
     }
     double cv = 0.0;
