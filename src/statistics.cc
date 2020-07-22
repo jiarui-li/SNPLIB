@@ -19,15 +19,6 @@ double CalcLDR2(const uint64_t *geno_1, const uint64_t *geno_2, double af1,
   uint64_t n_hetero_1 = 0;
   uint64_t n_hetero_2 = 0;
   for (size_t i = 0; i < num_words; ++i) {
-<<<<<<< HEAD
-=======
-    uint64_t homo_1 = (geno_1[i] ^ kMask2) & kMask1;
-    uint64_t homo_2 = (geno_2[i] ^ kMask2) & kMask1;
-    uint64_t hetero_1 = geno_1[i] ^ kMask1;
-    hetero_1 = (hetero_1 ^ kMask2) & kMask1;
-    uint64_t hetero_2 = geno_2[i] ^ kMask1;
-    hetero_2 = (hetero_2 ^ kMask2) & kMask1;
->>>>>>> d37fb14f4129eb82c88bf82685209bbcac81c67f
     uint64_t mask_1 = geno_1[i] ^ kMask1;
     mask_1 = (mask_1 | (mask_1 >> 1)) & kMask1;
     uint64_t mask_2 = geno_2[i] ^ kMask1;
