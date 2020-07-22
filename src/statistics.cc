@@ -14,49 +14,55 @@ double CalcLDR2(const uint64_t *geno_1, const uint64_t *geno_2, double af1,
   uint64_t n12 = 0;
   uint64_t n21 = 0;
   uint64_t n22 = 0;
+  uint64_t n_homo_1 = 0;
+  uint64_t n_homo_2 = 0;
+  uint64_t n_hetero_1 = 0;
+  uint64_t n_hetero_2 = 0;
   for (size_t i = 0; i < num_words; ++i) {
-    uint64_t homo_1 = (geno_1[i] & (geno_1[i] >> 1)) & kMask1;
-    uint64_t homo_2 = (geno_1[i] & (geno_1[i] >> 1)) & kMask1;
-    uint64_t hetero_1 = ~(geno_1[i] ^ kMask2);
-    hetero_1 = (hetero_1 & (hetero_1 >> 1)) & kMask1;
-    uint64_t hetero_2 = ~(geno_2[i] ^ kMask2);
-    hetero_2 = (hetero_2 & (hetero_2 >> 1)) & kMask1;
     uint64_t mask_1 = geno_1[i] ^ kMask1;
     mask_1 = (mask_1 | (mask_1 >> 1)) & kMask1;
     uint64_t mask_2 = geno_2[i] ^ kMask1;
     mask_2 = (mask_2 | (mask_2 >> 1)) & kMask1;
     auto mask = mask_1 & mask_2;
+    mask *= 3ull;
+    uint64_t homo_1 = ((geno_1[i] ^ kMask2) & kMask1) & mask;
+    uint64_t homo_2 = ((geno_2[i] ^ kMask2) & kMask1) & mask;
+    uint64_t hetero_1 = geno_1[i] ^ kMask1;
+    hetero_1 = ((hetero_1 & (hetero_1 >> 1)) & kMask1) & mask;
+    uint64_t hetero_2 = geno_2[i] ^ kMask1;
+    hetero_2 = ((hetero_2 & (hetero_2 >> 1)) & kMask1) & mask;
     num_samples += _mm_popcnt_u64(mask);
-    auto tmp_m = homo_1 & homo_2 & mask;
-    n11 += _mm_popcnt_u64(tmp_m);
-    tmp_m = homo_1 & hetero_2 & mask;
-    n12 += _mm_popcnt_u64(tmp_m);
-    tmp_m = hetero_1 & homo_2 & mask;
-    n21 += _mm_popcnt_u64(tmp_m);
-    tmp_m = hetero_1 & hetero_2 & mask;
-    n22 += _mm_popcnt_u64(tmp_m);
+    mask = homo_1 & homo_2;
+    n11 += _mm_popcnt_u64(mask);
+    mask = homo_1 & hetero_2;
+    n12 += _mm_popcnt_u64(mask);
+    mask = hetero_1 & homo_2;
+    n21 += _mm_popcnt_u64(mask);
+    mask = hetero_1 & hetero_2;
+    n22 += _mm_popcnt_u64(mask);
+    n_homo_1 += _mm_popcnt_u64(homo_1);
+    n_homo_2 += _mm_popcnt_u64(homo_2);
+    n_hetero_1 += _mm_popcnt_u64(hetero_1);
+    n_hetero_2 += _mm_popcnt_u64(hetero_2);
   }
-  auto n1 = static_cast<double>(num_samples);
-  auto n2 = static_cast<double>(2 * n11 + n12 + n21);
-  auto n3 = static_cast<double>(n22);
-  auto pq = 1.0 - 2.0 * af1 - 2.0 * af2;
-  auto a = 4.0 * n1;
-  auto b = 2.0 * n1 * pq - 2.0 * n2 - n3;
-  auto c = 2.0 * n1 * af1 * af2 - n2 * pq - n3 * (1.0 - af1 - af2);
-  auto d = -n2 * af1 * af2;
-  auto x_n = -b / a / 3.0;
-  auto delta = (b * b - 3.0 * a * c) / a / a / 9.0;
-  auto h = 4.0 * a * a * std::pow(delta, 6);
-  auto y_n = a * std::pow(x_n, 3) + b * x_n * x_n + c * x_n + d;
-  auto dd = y_n * y_n - h;
-  if (dd > 0.0) {
-    auto result = x_n + std::cbrt((std::sqrt(dd) - y_n) / a / 2.0) +
-                  std::cbrt((-std::sqrt(dd) - y_n) / a / 2.0);
-    return result;
-  }
-  if (dd == 0.0) {
-    auto mu = std::cbrt(y_n / a / 2.0);
-  }
+  num_samples /= 2;
+  auto n13 = n_homo_1 - n11 - n12;
+  auto n23 = n_hetero_1 - n21 - n22;
+  auto n31 = n_homo_2 - n11 - n21;
+  auto n32 = n_hetero_2 - n12 - n22;
+  auto n33 = num_samples - n11 - n12 - n13 - n21 - n22 - n23 - n31 - n32;
+  auto r2 = static_cast<double>(n11) * (2.0 - 2.0 * af1) * (2.0 - 2.0 * af2);
+  r2 += static_cast<double>(n21) * (1.0 - 2.0 * af1) * (2.0 - 2.0 * af2);
+  r2 -= static_cast<double>(n31) * 2.0 * af1 * (2.0 - 2.0 * af2);
+  r2 += static_cast<double>(n12) * (2.0 - 2.0 * af1) * (1.0 - 2.0 * af2);
+  r2 += static_cast<double>(n22) * (1.0 - 2.0 * af1) * (1.0 - 2.0 * af2);
+  r2 -= static_cast<double>(n32) * 2.0 * af1 * (1.0 - 2.0 * af2);
+  r2 -= static_cast<double>(n13) * (2.0 - 2.0 * af1) * 2.0 * af2;
+  r2 -= static_cast<double>(n23) * (1.0 - 2.0 * af1) * 2.0 * af2;
+  r2 += static_cast<double>(n32) * 2.0 * af1 * 2.0 * af2;
+  r2 /= 2.0 * std::sqrt(af1 * af2 * (1.0 - af1) * (1.0 - af2));
+  r2 /= (num_samples - 1);
+  return r2 * r2;
 }
 }  // namespace
 
@@ -112,6 +118,59 @@ void CalcMissing(const uint8_t *geno, size_t num_samples, size_t num_snps,
     missing[i] = 1.0 - static_cast<double>(nonmissings) / num_samples;
   }
   delete[] geno64;
+}
+void CalcLDscoresThread(const uint8_t *geno, const int32_t *bp,
+                        const double *af, size_t num_snps, size_t num_samples,
+                        size_t window_size, double r2_threshold, double *ldcv) {
+  auto local_ind = ind++;
+  auto ws = static_cast<int32_t>(window_size / 2);
+  auto num_words = num_samples / 32 + (num_samples % 32 > 0 ? 1 : 0);
+  auto *geno_1 = new uint64_t[num_words];
+  auto *geno_2 = new uint64_t[num_words];
+  while (local_ind < num_snps) {
+    SNP snp1(geno, num_samples);
+    snp1 += local_ind;
+    snp1.Copy(geno_1);
+    auto lower = bp[local_ind] - ws;
+    lower = lower > 0 ? lower : 0;
+    auto upper = bp[local_ind] + ws;
+    size_t first_ind = 0;
+    while (bp[first_ind] < lower) {
+      first_ind++;
+    }
+    size_t last_ind = first_ind;
+    while ((bp[last_ind] <= upper) && (last_ind <= num_snps)) {
+      last_ind++;
+    }
+    double cv = 0.0;
+    for (size_t i = first_ind; i < last_ind; ++i) {
+      if (i != local_ind) {
+        SNP snp2(geno, num_samples);
+        snp2 += i;
+        snp2.Copy(geno_2);
+        auto r2 = CalcLDR2(geno_1, geno_2, af[local_ind], af[i], num_words);
+        cv += r2 > r2_threshold ? r2 : 0;
+      }
+    }
+    ldcv[local_ind] = cv;
+    local_ind = ind++;
+  }
+  delete[] geno_1;
+  delete[] geno_2;
+}
+void CalcLDscores(const uint8_t *geno, const int32_t *bp, const double *af,
+                  size_t num_snps, size_t num_samples, size_t window_size,
+                  double r2_threshold, double *ldcv, size_t num_threads) {
+  std::vector<std::thread> workers;
+  ind = 0;
+  set_num_threads(1);
+  for (size_t i = 0; i < num_threads; ++i) {
+    workers.emplace_back(CalcLDscoresThread, geno, bp, af, num_snps,
+                         num_samples, window_size, r2_threshold, ldcv);
+  }
+  for (auto &&iter : workers) {
+    iter.join();
+  }
 }
 void CalcAdjustedAFThread(const uint8_t *geno, size_t num_samples,
                           size_t num_snps, double *covariates,

@@ -21,6 +21,9 @@ void CalcAlleleFrequencies(const uint8_t *geno, size_t num_samples,
                            size_t num_snps, double *af);
 void CalcMissing(const uint8_t *geno, size_t num_samples, size_t num_snps,
                  double *missing);
+void CalcLDscores(const uint8_t *geno, const int32_t *bp, const double *af,
+                  size_t num_snps, size_t num_samples, size_t window_size,
+                  double r2_threshold, double *ldcv, size_t num_threads);
 void CalcAdjustedAF(const uint8_t *geno, size_t num_samples, size_t num_snps,
                     double *covariates, size_t num_covariates, double *af,
                     size_t num_threads);

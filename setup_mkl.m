@@ -26,6 +26,7 @@ end
 mkdir(install_path);
 mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcAdjustedAF_.cc','src/statistics.cc','src/snp.cc');
 mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcAdjustedMAF_.cc','src/statistics.cc','src/snp.cc');
+mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcLDScores_.cc','src/statistics.cc','src/snp.cc');
 mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcAdjustedGRM_.cc','src/adjusted_grm.cc','src/snp.cc');
 mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcAdmixedGRM_.cc','src/adjusted_grm.cc','src/snp.cc');
 mex(cxxoptim,'-DUSE_MKL',mkl_include,mkl_seq_libs,'matlab/mexfiles/CalcAlleleFrequencies_.cc','src/statistics.cc','src/snp.cc');
