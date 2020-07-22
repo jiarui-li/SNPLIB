@@ -89,6 +89,23 @@ classdef SNPLIB < handle
         function matrix = CalcKINGMatrix(obj)
             matrix = CalcKINGMatrix_(obj.GENO,obj.nSamples,obj.nThreads);
         end
+        function ldcv = CalcLDScores(obj,SNPs,window_size, r2_threshold)
+            if nargin<4
+                r2_threshold=0.01;
+            end
+            if nargin<3
+                window_size=10000000;
+            end
+            chr = unique(SNPs.CHR);
+            ldcv = [];
+            af = obj.CalcAlleleFrequency();
+            for i=1:length(chr)
+                c = chr(i);
+                ind = find(SNPs.CHR==c);
+                bp = int32(SNPs.POS(ind));
+                ldcv = [ldcv;CalcLDScores_(obj.GENO(:,ind),bp,af(ind),obj.nSamples,window_size,r2_threshold,obj.nThreads)];
+            end
+        end
         function ind = FindUnrelated(obj, threshold)
             if nargin<2
                 threshold = 0.044;
