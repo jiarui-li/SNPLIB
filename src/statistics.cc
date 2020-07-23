@@ -59,7 +59,7 @@ double CalcLDR2(const uint64_t *geno_1, const uint64_t *geno_2, double af1,
   r2 -= static_cast<double>(n32) * 2.0 * af1 * (1.0 - 2.0 * af2);
   r2 -= static_cast<double>(n13) * (2.0 - 2.0 * af1) * 2.0 * af2;
   r2 -= static_cast<double>(n23) * (1.0 - 2.0 * af1) * 2.0 * af2;
-  r2 += static_cast<double>(n32) * 2.0 * af1 * 2.0 * af2;
+  r2 += static_cast<double>(n33) * 2.0 * af1 * 2.0 * af2;
   r2 /= 2.0 * std::sqrt(af1 * af2 * (1.0 - af1) * (1.0 - af2));
   r2 /= (num_samples - 1);
   return r2 * r2;
