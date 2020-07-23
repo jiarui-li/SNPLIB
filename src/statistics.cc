@@ -127,6 +127,8 @@ void CalcLDscoresThread(const uint8_t *geno, const int32_t *bp,
   auto num_words = num_samples / 32 + (num_samples % 32 > 0 ? 1 : 0);
   auto *geno_1 = new uint64_t[num_words];
   auto *geno_2 = new uint64_t[num_words];
+  std::fill(geno_1, geno_1 + num_words, kMask1);
+  std::fill(geno_2, geno_2 + num_words, kMask1);
   while (local_ind < num_snps) {
     SNP snp1(geno, num_samples);
     snp1 += local_ind;
@@ -144,13 +146,11 @@ void CalcLDscoresThread(const uint8_t *geno, const int32_t *bp,
     }
     double cv = 0.0;
     for (size_t i = first_ind; i < last_ind; ++i) {
-      if (i != local_ind) {
-        SNP snp2(geno, num_samples);
-        snp2 += i;
-        snp2.Copy(geno_2);
-        auto r2 = CalcLDR2(geno_1, geno_2, af[local_ind], af[i], num_words);
-        cv += r2 > r2_threshold ? r2 : 0;
-      }
+      SNP snp2(geno, num_samples);
+      snp2 += i;
+      snp2.Copy(geno_2);
+      auto r2 = CalcLDR2(geno_1, geno_2, af[local_ind], af[i], num_words);
+      cv += r2 > r2_threshold ? r2 : 0;
     }
     ldcv[local_ind] = cv;
     local_ind = ind++;
